@@ -1,7 +1,26 @@
 {
-  "name": "arrc",
+  "name": "siri-assistant",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.js" }
+  "scripts": {
+    "start": "node server.js"
+  },
+  "description": "<div align=\"center\">",
+  "main": "brain.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hari487-coder/arrc.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Hari487-coder/arrc/issues"
+  },
+  "homepage": "https://github.com/Hari487-coder/arrc#readme",
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  }
 }

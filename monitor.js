@@ -15,7 +15,9 @@ export function createMonitor({ root, env, record, battery }) {
   const load = () => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return []; } };
   const save = (list) => fs.writeFileSync(file, JSON.stringify(list, null, 2));
 
-  const configured = () => Boolean(env.SARVAM_WORKSPACE_KEY && env.SARVAM_ORG_ID && env.SARVAM_WORKSPACE_ID && env.ARRC_CONNECTION_ID && env.ARRC_APP_ID && env.OWNER_NUMBER);
+  const isTwilio = () => Boolean(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_FROM_NUMBER && env.OWNER_NUMBER);
+  const isSarvam = () => Boolean(env.SARVAM_WORKSPACE_KEY && env.SARVAM_ORG_ID && env.SARVAM_WORKSPACE_ID && env.ARRC_CONNECTION_ID && env.ARRC_APP_ID && env.OWNER_NUMBER);
+  const configured = () => isTwilio() || isSarvam();
 
   // ---------- parsing ----------
   function parseWhen(text, now = new Date()) {
@@ -96,11 +98,53 @@ export function createMonitor({ root, env, record, battery }) {
   async function callOwner(message, reason) {
     const today = new Date().toDateString();
     if (state.day !== today) { state.day = today; state.callsToday = 0; }
-    const entry = { action: 'call_owner', input: reason, caller: 'ARRC → you' };
+    const entry = { action: 'call_owner', input: reason, caller: 'Siri → you' };
     if (!configured()) {
       record({ ...entry, result: `DRY RUN (outbound not configured): "${message}"` });
       return { ok: false, dryRun: true };
     }
+    if (isTwilio()) {
+      try {
+        const to = env.OWNER_NUMBER.startsWith('+') ? env.OWNER_NUMBER : `+${env.OWNER_NUMBER.replace(/\D/g, '')}`;
+        const from = env.TWILIO_FROM_NUMBER.startsWith('+') ? env.TWILIO_FROM_NUMBER : `+${env.TWILIO_FROM_NUMBER.replace(/\D/g, '')}`;
+        const voice = env.TWILIO_VOICE || 'Polly.Aditi';
+        const lang = /Aditi|Raveena|Kajal/i.test(voice) ? 'en-IN' : /Amy|Brian|Arthur/i.test(voice) ? 'en-GB' : 'en-US';
+        const cleanMsg = String(message || '').replace(/[<>&'"]/g, ' ');
+        const twiml = `<Response><Pause length="1"/><Say voice="${voice}" language="${lang}">${cleanMsg}</Say></Response>`;
+        const twimletUrl = `https://twimlets.com/echo?Twiml=${encodeURIComponent(twiml)}`;
+        const params = new URLSearchParams({
+          To: to,
+          From: from,
+          Url: twimletUrl,
+        });
+        const auth = Buffer.from(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`).toString('base64');
+        const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(env.TWILIO_ACCOUNT_SID)}/Calls.json`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${auth}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: params.toString(),
+          signal: AbortSignal.timeout(15000),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          const errMsg = data.message || JSON.stringify(data);
+          record({ ...entry, result: `TWILIO CALL FAILED ${res.status}: ${errMsg.slice(0, 160)}`, refused: true });
+          return { ok: false, status: res.status, error: errMsg };
+        }
+        state.lastCallAt = Date.now();
+        state.callsToday += 1;
+        state.lastCall = { at: new Date().toISOString(), message, sid: data.sid };
+        record({ ...entry, result: `Calling your phone via Twilio: "${message}"` });
+        return { ok: true, sid: data.sid };
+      } catch (e) {
+        record({ ...entry, result: `TWILIO CALL FAILED: ${e.message}`, refused: true });
+        return { ok: false, error: e.message };
+      }
+    }
+
     try {
       const url = `https://apps.sarvam.ai/api/outbounds/v1/orgs/${encodeURIComponent(env.SARVAM_ORG_ID)}/workspaces/${encodeURIComponent(env.SARVAM_WORKSPACE_ID)}/outbounds`;
       const res = await fetch(url, {
@@ -150,8 +194,8 @@ export function createMonitor({ root, env, record, battery }) {
       if (!due.length && !overdue) continue;
       if (!canCall(left <= 120)) continue;
       const msg = overdue
-        ? `Hi, ARRC here. This is urgent. ${d.title} was due just now and it is not marked as submitted. Please take a look right away. Say submitted if you have done it.`
-        : `Hi, ARRC here. Heads up, ${d.title} is due in ${human(left)}, at ${clock(new Date(d.due))}. Please take a look. Say submitted once you are done and I will stop reminding you.`;
+        ? `Hi, Siri here. This is urgent. ${d.title} was due just now and it is not marked as submitted. Please take a look right away. Say submitted if you have done it.`
+        : `Hi, Siri here. Heads up, ${d.title} is due in ${human(left)}, at ${clock(new Date(d.due))}. Please take a look. Say submitted once you are done and I will stop reminding you.`;
       const r = await callOwner(msg, `deadline: ${d.title}`);
       d.notified.push(...due, ...(overdue ? [0] : []));
       changed = true;
@@ -165,7 +209,7 @@ export function createMonitor({ root, env, record, battery }) {
       if (b.charging || b.pct > 20) state.batteryAlerted = false;
       else if (b.pct <= 15 && !state.batteryAlerted && canCall(true)) {
         state.batteryAlerted = true;
-        await callOwner(`Hi, ARRC here. Urgent: your laptop battery is at ${b.pct} percent and it is not charging. Please plug it in now or you may lose your work.`, `battery ${b.pct}%`);
+        await callOwner(`Hi, Siri here. Urgent: your laptop battery is at ${b.pct} percent and it is not charging. Please plug it in now or you may lose your work.`, `battery ${b.pct}%`);
       }
     }
   }

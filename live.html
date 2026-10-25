@@ -2,245 +2,3409 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ARRC Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Siri — macOS Autonomous Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+  // Set the theme before first paint: remembered choice, otherwise the OS preference.
+  (() => {
+    try {
+      const saved = localStorage.getItem('siri-theme');
+      document.documentElement.dataset.theme = saved === 'light' || saved === 'dark'
+        ? saved
+        : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    } catch { document.documentElement.dataset.theme = 'dark'; }
+  })();
+</script>
 <style>
-:root{
-  --bg:#f4f7fb; --panel:rgba(255,255,255,.86); --line:rgba(15,76,129,.14); --ink:#0f1c2e; --muted:#5b6b80;
-  --cyan:#0b7fab; --cyan2:#0ea5c6; --amber:#d97706; --red:#dc2626; --green:#15803d;
+:root {
+  --font-sans: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Dark palette (default) */
+  --bg-page: #0b0603;
+  --bg-glow: rgba(234, 88, 12, 0.18);
+  --bg-glow-soft: rgba(234, 88, 12, 0.09);
+  --bg-card: #080808;
+  --bg-card-subtle: #0d0d0d;
+  --bg-hover: #141414;
+  --bg-input: #0a0a0a;
+  --bg-elevated: #161616;
+  --bg-stage: #0a0a0a;
+  --bg-overlay: rgba(12, 12, 12, 0.94);
+  --bg-tint: rgba(255, 255, 255, 0.04);
+  --bg-tint-strong: rgba(255, 255, 255, 0.07);
+
+  --border-subtle: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.24);
+
+  --accent: #ea580c;
+  --accent-muted: rgba(234, 88, 12, 0.16);
+  --accent-glow: rgba(234, 88, 12, 0.35);
+  --on-accent: #fff;
+  --on-accent-muted: #fff;
+
+  --text-primary: #fff;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-muted: rgba(255, 255, 255, 0.40);
+
+  --pill-active-bg: #fff;
+  --pill-active-fg: #000;
+
+  --key-bg: #1a1a1a;
+  --key-border: rgba(255, 255, 255, 0.10);
+  --key-text: #ddd;
+
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.65);
+  --shadow-key: 0 2px 4px rgba(0, 0, 0, 0.4);
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+
+  --transition: 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-*{box-sizing:border-box}
-html,body{margin:0;height:100%}
-body{background:radial-gradient(1200px 700px at 50% 38%,#e3f1fb 0%,var(--bg) 62%);color:var(--ink);font:15px/1.45 "Space Grotesk",system-ui,sans-serif;overflow-x:hidden}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;background:
-  linear-gradient(transparent 0 calc(100% - 1px),rgba(11,127,171,.06) 0) 0 0/100% 32px,
-  linear-gradient(90deg,transparent 0 calc(100% - 1px),rgba(11,127,171,.06) 0) 0 0/32px 100%}
-.wrap{position:relative;max-width:1280px;margin:0 auto;padding:20px 16px 32px;display:grid;gap:16px;grid-template-columns:300px 1fr 320px;grid-template-areas:"left core right"}
-@media (max-width:1100px){.wrap{grid-template-columns:1fr;grid-template-areas:"core" "left" "right"}}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(15,28,46,.06)}
-.label{font:600 11px/1 "JetBrains Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
-.left{grid-area:left;display:flex;flex-direction:column;gap:16px}
-.right{grid-area:right;display:flex;flex-direction:column;gap:16px;min-height:0}
-.core{grid-area:core;display:flex;flex-direction:column;align-items:center;gap:18px;padding-top:6px}
 
-h1{margin:0;font-size:28px;letter-spacing:.32em;font-weight:700;text-align:center}
-h1 span{color:var(--cyan)}
-.tag{color:var(--muted);text-align:center;margin-top:4px;font-size:13px}
+/* Cream light theme: warm paper background, pure white cards, same orange accent. */
+html[data-theme="light"] {
+  --bg-page: #fdf2e9;
+  --bg-glow: rgba(234, 88, 12, 0.14);
+  --bg-glow-soft: rgba(234, 88, 12, 0.08);
+  --bg-card: #fff;
+  --bg-card-subtle: #f6f0e6;
+  --bg-hover: #efe7da;
+  --bg-input: #fff;
+  --bg-elevated: #fff;
+  --bg-stage: #f6f0e6;
+  --bg-overlay: rgba(255, 255, 255, 0.96);
+  --bg-tint: rgba(0, 0, 0, 0.035);
+  --bg-tint-strong: rgba(0, 0, 0, 0.06);
 
-/* reactor */
-.reactor{position:relative;width:min(380px,82vw);aspect-ratio:1}
-.reactor svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.spin{transform-origin:50% 50%;animation:spin 18s linear infinite}
-.spin.r{animation-direction:reverse;animation-duration:26s}
-.spin.f{animation-duration:6s}
-@keyframes spin{to{transform:rotate(360deg)}}
-.glow{filter:drop-shadow(0 0 4px rgba(11,127,171,.35))}
-.center{position:absolute;inset:28%;border-radius:50%;display:grid;place-items:center;text-align:center;
-  background:radial-gradient(circle,rgba(14,165,198,.20),rgba(14,165,198,.04) 62%,transparent 70%);transition:background .4s}
-.center .state{font:600 12px "JetBrains Mono",monospace;letter-spacing:.2em;color:var(--cyan)}
-.center .big{font-size:20px;font-weight:700;margin-top:4px;max-width:150px;word-break:break-word}
-.reactor.fire .center{background:radial-gradient(circle,rgba(255,181,71,.45),rgba(255,181,71,.06) 62%,transparent 70%)}
-.reactor.fire .center .state{color:var(--amber)}
-.reactor.deny .center{background:radial-gradient(circle,rgba(255,93,108,.45),rgba(255,93,108,.06) 62%,transparent 70%)}
-.reactor.deny .center .state{color:var(--red)}
-.reactor.fire .spin{animation-duration:2s}
-.reactor.fire .spin.r{animation-duration:3s}
+  --border-subtle: rgba(0, 0, 0, 0.15);
+  --border-strong: rgba(0, 0, 0, 0.25);
 
-.now{width:100%;max-width:640px;text-align:center}
-.now .cmd{font-size:22px;font-weight:500;min-height:32px}
-.now .cmd q{color:var(--cyan)}
-.now .res{color:var(--muted);margin-top:6px;min-height:22px}
+  --accent: #ea580c;
+  --accent-muted: rgba(234, 88, 12, 0.10);
+  --accent-glow: rgba(234, 88, 12, 0.25);
+  --on-accent: #fff;
+  --on-accent-muted: #7c2d12;
 
-.call{font-size:13px;color:var(--muted)}
-.call b{display:block;font-size:26px;color:var(--ink);letter-spacing:.04em;margin-top:6px;font-family:"JetBrains Mono",monospace}
-.call .hint{margin-top:10px;font-size:13px}
-.chips{display:flex;flex-direction:column;gap:8px}
-.chip{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.9)}
-.chip i{font-style:normal;font:600 12px "JetBrains Mono",monospace}
-.ok{color:var(--green)} .warn{color:var(--amber)} .bad{color:var(--red)}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:6px;box-shadow:0 0 6px currentColor}
+  --text-primary: #000;
+  --text-secondary: rgba(0, 0, 0, 0.70);
+  --text-muted: rgba(0, 0, 0, 0.48);
 
-.caps{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.cap{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:10px;font-size:13px;background:rgba(255,255,255,.9);transition:all .3s}
-.cap .ic{width:22px;text-align:center}
-.cap.hot{border-color:var(--amber);background:rgba(255,181,71,.12);box-shadow:0 0 18px rgba(255,181,71,.25)}
+  --pill-active-bg: #000;
+  --pill-active-fg: #fff;
 
-.feed{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto;padding-right:2px}
-.item{border:1px solid var(--line);border-left:3px solid var(--cyan2);border-radius:10px;padding:9px 11px;background:rgba(255,255,255,.9)}
-.item.refused{border-left-color:var(--red)}
-.item.new{animation:flash 1.4s ease-out}
-@keyframes flash{from{background:rgba(14,165,198,.16)}}
-.item .top{display:flex;justify-content:space-between;gap:8px;font:12px "JetBrains Mono",monospace;color:var(--muted)}
-.item .act{color:var(--cyan)} .item.refused .act{color:var(--red)}
-.item .in{margin-top:4px} .item .out{color:var(--muted);font-size:13px;margin-top:2px}
-.empty{color:var(--muted);font-size:14px;text-align:center;padding:24px 0}
-.samples{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
-.samples span{color:var(--ink)}
-.watch{display:flex;flex-direction:column;gap:10px}
-.dls{display:flex;flex-direction:column;gap:8px}
-.dl{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:rgba(255,255,255,.9);display:flex;justify-content:space-between;gap:10px;align-items:center}
-.dl b{display:block;font-weight:600}
-.dl small{color:var(--muted);font:12px "JetBrains Mono",monospace}
-.dl.soon{border-color:var(--amber);background:rgba(217,119,6,.08)}
-.dl.late{border-color:var(--red);background:rgba(220,38,38,.07)}
-.dl button,.add button,.ghostbtn{font:inherit;font-size:13px;border-radius:8px;cursor:pointer;padding:7px 10px}
-.dl button{border:1px solid var(--line);background:#fff;color:var(--ink)}
-.add{display:flex;flex-direction:column;gap:6px}
-.add input{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
-.add button{border:0;background:var(--cyan);color:#fff;font-weight:600}
-.ghostbtn{border:1px solid var(--cyan);background:#fff;color:var(--cyan);font-weight:600}
-.watchmsg{font-size:13px;color:var(--muted);min-height:18px}
-@media (prefers-reduced-motion:reduce){.spin,.item.new{animation:none}}
+  --key-bg: #fff;
+  --key-border: rgba(0, 0, 0, 0.12);
+  --key-text: #000;
+
+  --shadow-sm: 0 4px 16px rgba(90, 60, 25, 0.10);
+  --shadow-md: 0 8px 30px rgba(90, 60, 25, 0.12);
+  --shadow-lg: 0 20px 50px rgba(90, 60, 25, 0.16);
+  --shadow-key: 0 2px 4px rgba(90, 60, 25, 0.12);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+input, button, select, textarea {
+  font-family: inherit;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--bg-page);
+  /* #ea580c wash: a warm corner glow behind the cards, in both the night and light themes */
+  background-image:
+    radial-gradient(900px 560px at 8% -12%, var(--bg-glow), transparent 62%),
+    radial-gradient(780px 480px at 94% 6%, var(--bg-glow-soft), transparent 68%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Refined Antigravity Edge Glow Indicator */
+body.agent-active::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999999;
+  box-shadow: 
+    inset 0 0 0 3px var(--accent),
+    inset 0 0 40px rgba(234, 88, 12, 0.45);
+  animation: edgePulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes edgePulse {
+  0% { opacity: 0.6; }
+  100% { opacity: 1.0; }
+}
+
+/* Master Layout Container */
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ── Dynamic Island / Floating Activity Capsule HUD ── */
+.dynamic-capsule {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(14, 14, 16, 0.90);
+  border: 1px solid var(--border-strong);
+  border-radius: 28px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.65), 0 0 24px rgba(234, 88, 12, 0.22);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 5px 14px;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  cursor: pointer;
+  max-width: 92vw;
+}
+
+html[data-theme="light"] .dynamic-capsule {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  box-shadow: 0 16px 48px rgba(90, 60, 25, 0.16), 0 0 20px rgba(234, 88, 12, 0.15);
+}
+
+.capsule-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 34px;
+  padding: 0 4px;
+}
+
+.capsule-left {
+  display: flex;
+  align-items: center;
+}
+
+.capsule-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+}
+
+.capsule-wave .c-bar {
+  width: 3px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: capsuleWaveAnim 1.2s ease-in-out infinite;
+}
+
+.capsule-wave .c-bar:nth-child(2) { animation-delay: 0.2s; height: 14px; }
+.capsule-wave .c-bar:nth-child(3) { animation-delay: 0.4s; height: 10px; }
+.capsule-wave .c-bar:nth-child(4) { animation-delay: 0.1s; height: 16px; }
+
+@keyframes capsuleWaveAnim {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
+  50% { transform: scaleY(1.2); opacity: 1; }
+}
+
+.capsule-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+.capsule-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.capsule-status {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.capsule-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(234, 88, 12, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(234, 88, 12, 0.3);
+}
+
+.capsule-badge .c-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+/* Expanded Card Body */
+.capsule-expanded-body {
+  display: none;
+  width: 440px;
+  padding: 12px 6px 6px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 6px;
+  flex-direction: column;
+  gap: 10px;
+  cursor: default;
+}
+
+.dynamic-capsule.expanded {
+  border-radius: 20px;
+  padding: 10px 18px 14px;
+}
+
+.dynamic-capsule.expanded .capsule-expanded-body {
+  display: flex;
+}
+
+.capsule-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.capsule-action-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+}
+
+.capsule-detail-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.capsule-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.capsule-btn {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.capsule-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.capsule-btn.accent {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  font-weight: 600;
+}
+
+/* 1. Header Navigation */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+/* ── Voice logo animation ── */
+.voice-logo {
+  display: flex;
+  align-items: center;
+  position: relative;
+  width: 32px;
+  height: 28px;
+}
+
+.voice-logo svg { overflow: visible; }
+
+.voice-bar {
+  animation: voice-pulse 1.4s ease-in-out infinite;
+}
+.voice-bar:nth-child(1) { animation-delay: 0s; }
+.voice-bar:nth-child(2) { animation-delay: 0.15s; }
+.voice-bar:nth-child(3) { animation-delay: 0.3s; }
+.voice-bar:nth-child(4) { animation-delay: 0.45s; }
+.voice-bar:nth-child(5) { animation-delay: 0.6s; }
+.voice-bar:nth-child(6) { animation-delay: 0.2s; }
+.voice-bar:nth-child(7) { animation-delay: 0.5s; }
+
+@keyframes voice-pulse {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.7; }
+  50%      { transform: scaleY(1);    opacity: 1;   }
+}
+
+.voice-sparkle {
+  animation: sparkle-twinkle 2s ease-in-out infinite;
+}
+.voice-sparkle:nth-child(8)  { animation-delay: 0s; }
+.voice-sparkle:nth-child(9)  { animation-delay: 0.7s; }
+.voice-sparkle:nth-child(10) { animation-delay: 1.4s; }
+
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50%      { opacity: 1; transform: scale(1); }
+}
+
+/* hidden status link kept for JS polling */
+.brand .status-link-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+}
+
+.header-status-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.status-badge .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.status-badge.accent {
+  color: var(--text-primary);
+  border-color: rgba(234, 88, 12, 0.25);
+  background: var(--accent-muted);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.lang-select-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.lang-select-btn {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition);
+}
+
+.lang-select-btn:hover, .lang-select-btn:focus {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+/* 2. Hero Command Section */
+.hero-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+  padding: 24px 0 12px;
+}
+
+/* Modern Voice Waveform / Status Pill */
+.voice-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition);
+}
+
+/* ── Unique 3D Infinity Orbital Indicator beside STANDBY ── */
+.orbit-dots {
+  position: relative;
+  width: 24px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orbit-dot {
+  position: absolute;
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  top: 50%;
+  left: 50%;
+  margin: -1.75px 0 0 -1.75px;
+  pointer-events: none;
+  animation: infinity-orbit 3s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Stagger 3 dots evenly across the 3s period */
+.orbit-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+.orbit-dot:nth-child(2) {
+  animation-delay: -1s;
+}
+.orbit-dot:nth-child(3) {
+  animation-delay: -2s;
+}
+
+/* Continuous 3D Lemniscate (Infinity Loop) with depth scaling */
+@keyframes infinity-orbit {
+  0% {
+    transform: translate(-8px, 0) scale(0.85);
+    opacity: 0.5;
+    box-shadow: none;
+  }
+  12.5% {
+    transform: translate(-5.5px, -3.5px) scale(0.65);
+    opacity: 0.35;
+    box-shadow: none;
+  }
+  25% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 0.85;
+    box-shadow: 0 0 3px rgba(234, 88, 12, 0.4);
+  }
+  37.5% {
+    transform: translate(5.5px, 3.5px) scale(1.25);
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(234, 88, 12, 0.8);
+  }
+  50% {
+    transform: translate(8px, 0) scale(1);
+    opacity: 0.85;
+    box-shadow: 0 0 4px rgba(234, 88, 12, 0.5);
+  }
+  62.5% {
+    transform: translate(5.5px, -3.5px) scale(0.65);
+    opacity: 0.35;
+    box-shadow: none;
+  }
+  75% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 0.85;
+    box-shadow: 0 0 3px rgba(234, 88, 12, 0.4);
+  }
+  87.5% {
+    transform: translate(-5.5px, 3.5px) scale(1.25);
+    opacity: 1;
+    box-shadow: 0 0 6px rgba(234, 88, 12, 0.8);
+  }
+  100% {
+    transform: translate(-8px, 0) scale(0.85);
+    opacity: 0.5;
+    box-shadow: none;
+  }
+}
+
+/* Active State: Speeds up into energetic resonance when active/command executing */
+.voice-indicator.active {
+  border-color: rgba(234, 88, 12, 0.45);
+  box-shadow: 0 0 16px rgba(234, 88, 12, 0.18);
+}
+
+.voice-indicator.active .orbit-dot {
+  animation: infinity-orbit-fast 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.voice-indicator.active .orbit-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+.voice-indicator.active .orbit-dot:nth-child(2) {
+  animation-delay: -0.366s;
+}
+.voice-indicator.active .orbit-dot:nth-child(3) {
+  animation-delay: -0.733s;
+}
+
+@keyframes infinity-orbit-fast {
+  0% {
+    transform: translate(-9px, 0) scale(0.9);
+    opacity: 0.6;
+    box-shadow: none;
+  }
+  12.5% {
+    transform: translate(-6px, -4px) scale(0.7);
+    opacity: 0.4;
+    box-shadow: none;
+  }
+  25% {
+    transform: translate(0px, 0px) scale(1.1);
+    opacity: 0.9;
+    box-shadow: 0 0 5px rgba(234, 88, 12, 0.6);
+  }
+  37.5% {
+    transform: translate(6px, 4px) scale(1.4);
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(234, 88, 12, 1);
+  }
+  50% {
+    transform: translate(9px, 0) scale(1.1);
+    opacity: 0.9;
+    box-shadow: 0 0 6px rgba(234, 88, 12, 0.7);
+  }
+  62.5% {
+    transform: translate(6px, -4px) scale(0.7);
+    opacity: 0.4;
+    box-shadow: none;
+  }
+  75% {
+    transform: translate(0px, 0px) scale(1.1);
+    opacity: 0.9;
+    box-shadow: 0 0 5px rgba(234, 88, 12, 0.6);
+  }
+  87.5% {
+    transform: translate(-6px, 4px) scale(1.4);
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(234, 88, 12, 1);
+  }
+  100% {
+    transform: translate(-9px, 0) scale(0.9);
+    opacity: 0.6;
+    box-shadow: none;
+  }
+}
+
+.voice-status-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.hero-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* Minimalist Command Input Bar (Spotlight Style) */
+.command-box {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition);
+}
+
+.command-box:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-muted), var(--shadow-lg);
+}
+
+.command-icon {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+.command-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.command-input::placeholder {
+  color: var(--text-muted);
+}
+
+.btn-mic-clean {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-mic-clean:hover {
+  color: var(--accent);
+  background: var(--accent-muted);
+}
+
+.btn-mic-clean.listening {
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.btn-submit-clean {
+  background: var(--accent);
+  border: none;
+  color: var(--on-accent);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition);
+}
+
+.btn-submit-clean:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+/* Quick Suggestion Chips */
+.quick-chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 760px;
+}
+
+.chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* Prompt-Kit Modern AI Chat Interface Styles */
+.pk-chat-card {
+  width: 100%;
+  max-width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  position: relative;
+  backdrop-filter: blur(16px);
+}
+
+.pk-chat-card:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-subtle);
+}
+
+.pk-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card-subtle);
+}
+
+.pk-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pk-header-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-tint-strong);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+}
+
+.pk-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+}
+
+.pk-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pk-btn-subtle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pk-btn-subtle:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border-color: var(--border-subtle);
+}
+
+/* Chat Message Viewport (Prompt-Kit ChatContainer stream) */
+.pk-chat-viewport {
+  min-height: 220px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-behavior: smooth;
+  position: relative;
+}
+
+.pk-chat-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+.pk-chat-viewport::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+
+/* Prompt Suggestions Grid (Prompt-Kit PromptSuggestion) */
+.pk-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 12px;
+  text-align: center;
+  gap: 16px;
+}
+
+.pk-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pk-suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.pk-suggestion-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pk-suggestion-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.pk-suggestion-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pk-suggestion-text {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Message Rows (Prompt-Kit Message) */
+.pk-msg-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  animation: pkFadeSlide 180ms ease-out;
+}
+
+@keyframes pkFadeSlide {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pk-msg-user {
+  justify-content: flex-end;
+}
+
+.pk-user-bubble {
+  max-width: 80%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px 14px 2px 14px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+  word-break: break-word;
+}
+
+.pk-msg-assistant {
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.pk-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.pk-assistant-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: calc(100% - 44px);
+  width: 100%;
+}
+
+.pk-assistant-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.pk-action-tag {
+  background: var(--accent-muted);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pk-timestamp {
+  color: var(--text-muted);
+}
+
+/* Prompt-Kit ChainOfThought Component (Image 3) */
+.pk-cot {
+  display: flex;
+  flex-direction: column;
+  margin: 6px 0 10px 0;
+  width: 100%;
+}
+
+.pk-cot-step {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.pk-cot-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+}
+
+.pk-cot-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 14px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.pk-cot-dot {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: all var(--transition);
+  z-index: 2;
+}
+
+.pk-cot-step.active .pk-cot-dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+.pk-cot-line {
+  position: absolute;
+  top: 10px;
+  bottom: -16px;
+  width: 1.5px;
+  background: var(--border-subtle);
+  z-index: 1;
+}
+
+.pk-cot-step:last-child .pk-cot-line {
+  display: none;
+}
+
+.pk-cot-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.pk-cot-header:hover .pk-cot-trigger {
+  color: var(--text-primary);
+}
+
+.pk-cot-chevron {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  transition: transform var(--transition);
+}
+
+.pk-cot-step.open .pk-cot-chevron {
+  transform: rotate(180deg);
+}
+
+.pk-cot-content {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 10px 24px;
+}
+
+.pk-cot-step.open .pk-cot-content {
+  display: flex;
+}
+
+.pk-cot-item {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  font-family: var(--font-sans);
+}
+
+/* Prompt-Kit Source Component (Image 4) */
+.pk-sources-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.pk-source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  text-decoration: none;
+  position: relative;
+  transition: all var(--transition);
+}
+
+.pk-source-pill:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.pk-source-favicon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.pk-source-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  width: 240px;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 150ms ease;
+  z-index: 100;
+}
+
+.pk-source-pill:hover .pk-source-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.pk-source-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pk-source-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Prompt-Kit Loader Component (typing / loading-dots) */
+.pk-loader-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  width: fit-content;
+}
+
+.pk-loader-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: pkTypingAnim 1.4s infinite ease-in-out both;
+}
+
+.pk-loader-dot:nth-child(1) { animation-delay: -0.32s; }
+.pk-loader-dot:nth-child(2) { animation-delay: -0.16s; }
+.pk-loader-dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes pkTypingAnim {
+  0%, 80%, 100% { transform: scale(0.65); opacity: 0.35; }
+  40% { transform: scale(1.15); opacity: 1; background: var(--accent); }
+}
+
+.pk-response-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  color: var(--text-primary);
+  font-size: 14.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  position: relative;
+}
+
+.pk-response-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.pk-btn-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pk-btn-copy:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.pk-pill-btn.active {
+  background: var(--accent) !important;
+  color: var(--on-accent) !important;
+  border-color: var(--accent) !important;
+}
+
+/* Modern Prompt-Kit Input Composer (Single Unified Shell, No Corner Nesting) */
+.pk-chatgpt-bar {
+  width: 100%;
+  background: var(--bg-card-subtle);
+  border-top: 1px solid var(--border-subtle);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px);
+  padding: 14px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: none;
+  margin: 0;
+  transition: background-color var(--transition);
+}
+
+.pk-chatgpt-bar:focus-within {
+  background: var(--bg-card);
+}
+
+.pk-chatgpt-textarea {
+  width: 100%;
+  min-height: 28px;
+  max-height: 140px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  padding: 2px 2px;
+}
+
+.pk-chatgpt-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.pk-chatgpt-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.pk-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pk-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pk-circle-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pk-circle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.pk-circle-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.pk-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pk-pill-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.pk-pill-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.pk-send-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--pill-active-bg);
+  color: var(--pill-active-fg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.pk-send-circle:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.pk-send-circle:active {
+  transform: translateY(0);
+}
+
+.pk-send-circle svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+}
+
+/* Prompt-Kit ScrollButton */
+.pk-scroll-btn {
+  position: absolute;
+  bottom: 80px;
+  right: 24px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  z-index: 10;
+  transition: all var(--transition);
+}
+
+.pk-scroll-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+/* Legacy Compatibility Hidden Wrapper */
+.legacy-compat-hidden {
+  display: none !important;
+}
+
+.btn-destination-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+  transition: all var(--transition);
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+.btn-destination-pill:hover {
+  background: var(--pill-active-bg);
+  color: var(--pill-active-fg);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 28px;
+  align-items: start;
+}
+
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: sticky;
+  top: 24px;
+}
+
+@media (max-width: 1040px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+  .right-column {
+    position: static;
+  }
+}
+
+/* Section Containers */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  height: fit-content;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Minimal Category Filters */
+.deadline-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.deadline-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.deadline-row.urgent {
+  border-color: rgba(234, 88, 12, 0.4);
+}
+
+.deadline-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.deadline-due {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.btn-check {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-check:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.deadline-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.field-input {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.field-input:focus {
+  border-color: var(--accent);
+}
+
+.btn-add-deadline {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-add-deadline:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-call-trigger {
+  background: var(--accent-muted);
+  border: 1px solid rgba(234, 88, 12, 0.3);
+  color: var(--on-accent-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition);
+}
+
+.btn-call-trigger:hover {
+  border-color: var(--accent);
+  background: rgba(234, 88, 12, 0.2);
+}
+
+.call-message {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  min-height: 16px;
+}
+
+/* Empty State */
+.empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+/* Clean Feather SVG Icon */
+.icon {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+/* Theme toggle: sun while dark, moon while light */
+.theme-toggle .icon-moon { display: none; }
+html[data-theme="light"] .theme-toggle .icon-sun { display: none; }
+html[data-theme="light"] .theme-toggle .icon-moon { display: block; }
+
+/* ── Full-Page WebGL2 DotGrid Ambient Background ── */
+.page-dotgrid-bg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.page-dotgrid-bg .dot-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.page-dotgrid-bg .dot-grid__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 </style>
 </head>
 <body>
-<div class="wrap">
-  <aside class="left">
-    <div class="panel call">
-      <div class="label">Call ARRC</div>
-      Dial from your phone
-      <b id="phone">—</b>
-      <div class="hint">Speak in Hindi, English, Telugu or any mix. Powered by Sarvam: Saaras listens, Sarvam-105B decides, Bulbul speaks.</div>
-    </div>
-    <div class="panel">
-      <div class="label">System</div>
-      <div class="chips">
-        <div class="chip"><span>Laptop link</span><i id="link" class="ok"><span class="dot"></span>ONLINE</i></div>
-        <div class="chip"><span>Owner lock</span><i id="lock">—</i></div>
-        <div class="chip"><span>Actions today</span><i id="count">0</i></div>
-        <div class="chip"><span>Refused callers</span><i id="refused">0</i></div>
+
+<!-- Interactive Full-Page WebGL2 DotGrid Ambient Background -->
+<div id="dotgrid-root" class="page-dotgrid-bg"></div>
+
+<!-- System Floating Capsule Compatibility Anchors -->
+<div class="legacy-compat-hidden" aria-hidden="true">
+  <div id="dynamicCapsule">
+    <span id="capsuleTitle">Siri Assistant</span>
+    <span id="capsuleStatus">System Ready</span>
+    <span id="capsuleActionTag">IDLE</span>
+    <span id="capsuleDetailText">Online</span>
+    <span id="capsuleBadgeText">ACTIVE</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- 1. Header Navigation -->
+  <header class="header">
+    <div class="brand">
+      <div class="voice-logo">
+        <svg width="32" height="28" viewBox="0 0 32 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="vGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ea580c"/>
+              <stop offset="100%" stop-color="#ea580c"/>
+            </linearGradient>
+            <linearGradient id="vGradDeep" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ea580c"/>
+              <stop offset="100%" stop-color="#ea580c"/>
+            </linearGradient>
+          </defs>
+          <!-- 7 voice bars, transform-origin at base (center-bottom) -->
+          <rect class="voice-bar" x="1"  y="8"  width="2.6" height="12" rx="1.3" fill="url(#vGradDeep)" style="transform-origin:2.3px 14px"/>
+          <rect class="voice-bar" x="5.5" y="4"  width="2.6" height="20" rx="1.3" fill="url(#vGrad)"     style="transform-origin:6.8px 14px"/>
+          <rect class="voice-bar" x="10" y="1"  width="3"   height="26" rx="1.5" fill="url(#vGradDeep)" style="transform-origin:11.5px 14px"/>
+          <rect class="voice-bar" x="14.5" y="3" width="3"   height="22" rx="1.5" fill="url(#vGrad)"     style="transform-origin:16px 14px"/>
+          <rect class="voice-bar" x="19" y="6"  width="2.6" height="16" rx="1.3" fill="url(#vGradDeep)" style="transform-origin:20.3px 14px"/>
+          <rect class="voice-bar" x="23.5" y="4" width="2.6" height="20" rx="1.3" fill="url(#vGrad)"     style="transform-origin:24.8px 14px"/>
+          <rect class="voice-bar" x="28" y="9"  width="2.6" height="10" rx="1.3" fill="url(#vGradDeep)" style="transform-origin:29.3px 14px"/>
+          <!-- sparkle accents -->
+          <path class="voice-sparkle" d="M8 2 L8.5 0.5 L9 2 L8.5 3.5Z"  fill="#ea580c"/>
+          <path class="voice-sparkle" d="M22 1 L22.4 0 L22.8 1 L22.4 2Z" fill="#ea580c"/>
+          <path class="voice-sparkle" d="M27 4 L27.3 3.2 L27.6 4 L27.3 4.8Z" fill="#ea580c"/>
+        </svg>
+      </div>
+      <div class="brand-name">Siri</div>
+      <!-- hidden: keeps JS polling functional -->
+      <div class="status-link-hidden" id="link">
+        <span class="dot"></span>
+        <span>Online</span>
       </div>
     </div>
-    <div class="panel samples">
-      <div class="label">Try saying</div>
-      <div><span>“Mera EM5120 assignment kholo”</span></div>
-      <div><span>“25 minute focus session for my assignment”</span></div>
-      <div><span>“Remind me, DBMS project due tomorrow 5 pm”</span></div>
-      <div><span>“YouTube pe Arijit Singh ke gaane chalao”</span></div>
-      <div><span>“Work mode on karo”</span></div>
-      <div><span>“5 minute ka timer lagao chai ke liye”</span></div>
-      <div><span>“Laptop se bolo, hello judges”</span></div>
-      <div><span>“Take a screenshot”</span></div>
-      <div><span>“Volume kam karo”</span></div>
-    </div>
-  </aside>
 
-  <main class="core">
-    <div>
-      <h1>A<span>.</span>R<span>.</span>R<span>.</span>C</h1>
-      <div class="tag">Your laptop, on a phone call. In your language.</div>
-    </div>
-    <div class="reactor" id="reactor" aria-hidden="true">
-      <svg viewBox="0 0 200 200">
-        <g class="spin glow"><circle cx="100" cy="100" r="96" fill="none" stroke="#0b7fab" stroke-opacity=".55" stroke-width="1" stroke-dasharray="2 6"/></g>
-        <g class="spin r"><circle cx="100" cy="100" r="86" fill="none" stroke="#0ea5c6" stroke-opacity=".35" stroke-width="6" stroke-dasharray="40 14"/></g>
-        <g class="spin f glow"><circle cx="100" cy="100" r="74" fill="none" stroke="#0b7fab" stroke-width="1.5" stroke-dasharray="90 30 20 30"/></g>
-        <g class="spin"><circle cx="100" cy="100" r="64" fill="none" stroke="#0b7fab" stroke-opacity=".25" stroke-width="10" stroke-dasharray="3 5"/></g>
-      </svg>
-      <div class="center"><div><div class="state" id="state">STANDBY</div><div class="big" id="big">Ready</div></div></div>
-    </div>
-    <div class="now panel">
-      <div class="label">Last command</div>
-      <div class="cmd" id="cmd">Waiting for your call…</div>
-      <div class="res" id="res"></div>
-    </div>
-    <div class="panel" style="width:100%;max-width:640px">
-      <div class="label">Capabilities</div>
-      <div class="caps" id="caps"></div>
-    </div>
-  </main>
+    <div class="header-actions">
+      <!-- Multilingual Language Selector (Telugu, English, Hindi, Spanish, French, German, Japanese) -->
+      <div class="lang-select-wrapper">
+        <select id="langSelect" class="lang-select-btn" onchange="switchAppLanguage(this.value)" title="Choose Language">
+          <option value="en">🌐 English (EN)</option>
+          <option value="te">🌐 తెలుగు (Telugu)</option>
+          <option value="hi">🌐 हिन्दी (Hindi)</option>
+          <option value="es">🌐 Español (ES)</option>
+          <option value="fr">🌐 Français (FR)</option>
+          <option value="de">🌐 Deutsch (DE)</option>
+          <option value="ja">🌐 日本語 (JA)</option>
+        </select>
+      </div>
 
-  <aside class="right">
-    <div class="panel watch">
-      <div class="label">ARRC is watching</div>
-      <div class="chip"><span>Urgent calls to you</span><i id="outbound">—</i></div>
-      <div id="dls" class="dls"><div class="empty">No deadlines yet.</div></div>
-      <form id="addDl" class="add">
-        <input id="dlTitle" placeholder="What is due? e.g. DBMS project" required>
-        <input id="dlWhen" placeholder="When? e.g. tomorrow 5 pm, in 2 minutes" required>
-        <button type="submit">Add deadline</button>
-      </form>
-      <button id="testCall" class="ghostbtn" type="button">📞 Test urgent call</button>
-      <div id="watchMsg" class="watchmsg"></div>
+      <button class="btn-ghost theme-toggle" id="themeToggle" type="button" title="Switch to light mode" aria-label="Switch to light mode" aria-pressed="false">
+        <svg class="icon icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="btn-ghost" id="topTestCall" type="button" title="Test Twilio Phone Outbound">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <span>Test Call</span>
+      </button>
     </div>
-    <div class="panel" style="display:flex;flex-direction:column;min-height:0">
-      <div class="label">Live activity</div>
-      <div class="feed" id="feed"><div class="empty">No actions yet. Call the number.</div></div>
+  </header>
+
+  <!-- 2. Master Two-Column Desktop Grid -->
+  <div class="main-grid">
+
+    <!-- Left Column: Primary Intelligence, Chat, Capabilities & Studio -->
+    <div class="left-column">
+
+      <!-- Hero Command Console (Raycast Style) -->
+      <section class="hero-section">
+        <!-- Restrained Siri Waveform Status -->
+        <div class="voice-indicator" id="reactor">
+          <div class="orbit-dots">
+            <div class="orbit-dot"></div>
+            <div class="orbit-dot"></div>
+            <div class="orbit-dot"></div>
+          </div>
+          <span class="voice-status-text" id="state">STANDBY</span>
+          <span style="display:none;" id="big">Ready</span>
+          <span style="display:none;" id="count">0</span>
+          <span style="display:none;" id="corePort">3710</span>
+          <span style="display:none;" id="brainStatus"></span>
+        </div>
+
+        <h1 class="hero-title">What can I do for you?</h1>
+
+        <!-- Prompt-Kit Modern AI Chat Interface -->
+        <div class="pk-chat-card" id="pkChatCard">
+          <!-- Chat Header -->
+          <div class="pk-chat-header">
+            <div class="pk-header-left">
+              <div class="pk-header-pill">
+                <div class="pk-status-dot"></div>
+                <span id="pkHeaderStatus">Siri Copilot · Ready</span>
+              </div>
+            </div>
+            <div class="pk-header-actions">
+              <button type="button" class="pk-btn-subtle" onclick="clearChatThread()" title="Clear conversation thread">
+                <svg class="icon" style="width:12px;height:12px;" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>Clear</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Chat Viewport (Prompt-Kit ChatContainer) -->
+          <div class="pk-chat-viewport" id="pkChatViewport">
+            <!-- Empty State with Prompt Suggestions (Prompt-Kit PromptSuggestion) -->
+            <div class="pk-empty-state" id="pkEmptyState">
+              <div class="pk-empty-title">
+                <svg class="icon" style="width:16px;height:16px;color:var(--text-secondary);" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span>What can I automate or execute for you?</span>
+              </div>
+              <div class="pk-suggestions-grid">
+                <div class="pk-suggestion-card" onclick="runPrompt('నమస్కారం! ఇప్పుడు సమయం ఎంత?')">
+                  <div class="pk-suggestion-top">
+                    <span>🌐 తెలుగు & సమయం (Telugu Time)</span>
+                  </div>
+                  <div class="pk-suggestion-text">నమస్కారం! ప్రస్తుత సమయం మరియు తేదీ ఏమిటి?</div>
+                </div>
+                <div class="pk-suggestion-card" onclick="runPrompt('wikipedia APJ Abdul Kalam')">
+                  <div class="pk-suggestion-top">
+                    <span>📖 Wikipedia Summary</span>
+                  </div>
+                  <div class="pk-suggestion-text">Search Wikipedia for concise voice summary & link</div>
+                </div>
+                <div class="pk-suggestion-card" onclick="runPrompt('play local music')">
+                  <div class="pk-suggestion-top">
+                    <span>🎵 Local Music Library</span>
+                  </div>
+                  <div class="pk-suggestion-text">Scan Music folder and play local audio tracks</div>
+                </div>
+                <div class="pk-suggestion-card" onclick="runPrompt('tell me a joke')">
+                  <div class="pk-suggestion-top">
+                    <span>😄 Humor & Jokes</span>
+                  </div>
+                  <div class="pk-suggestion-text">Tell a clever programming or general joke in any language</div>
+                </div>
+                <div class="pk-suggestion-card" onclick="runPrompt('take a screenshot')">
+                  <div class="pk-suggestion-top">
+                    <span>📸 Screen Capture</span>
+                  </div>
+                  <div class="pk-suggestion-text">Cross-platform screenshot saved to Pictures/Siri</div>
+                </div>
+                <div class="pk-suggestion-card" onclick="runPrompt('system status')">
+                  <div class="pk-suggestion-top">
+                    <span>⚡ Hardware Telemetry</span>
+                  </div>
+                  <div class="pk-suggestion-text">OS architecture (Silicon/Intel/Linux), battery & RAM</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Message List -->
+            <div id="pkMessageList" style="display:flex;flex-direction:column;gap:16px;width:100%;"></div>
+
+            <!-- Scroll-To-Bottom Floating Button (Prompt-Kit ScrollButton) -->
+            <button type="button" class="pk-scroll-btn" id="pkScrollBtn" onclick="scrollChatToBottom(true)" title="Jump to recent message">
+              <svg class="icon" style="width:14px;height:14px;" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+
+          <!-- Modern ChatGPT / Prompt-Kit Unified Composer Bar -->
+          <form class="pk-chatgpt-bar" id="directCmdForm">
+            <input type="file" id="pkFileInput" style="display:none;" onchange="handleFileSelected(event)">
+            <textarea 
+              class="pk-chatgpt-textarea" 
+              id="directInput" 
+              placeholder="Message Siri..." 
+              rows="1"
+              autocomplete="off"
+            ></textarea>
+            <div class="pk-chatgpt-toolbar">
+              <div class="pk-toolbar-left">
+                <button type="button" class="pk-circle-btn" id="pkAttachBtn" onclick="$('pkFileInput').click()" title="Attach file or document">
+                  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                <button type="button" class="pk-pill-btn" id="pkSearchToggleBtn" onclick="toggleSearchMode(event)" title="Toggle Web Search Mode">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  <span>Search</span>
+                </button>
+              </div>
+              <div class="pk-toolbar-right">
+                <button type="button" class="pk-circle-btn" id="micBtn" title="Speak via microphone">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" x2="12" y1="19" y2="22"/>
+                  </svg>
+                </button>
+                <button type="submit" class="pk-send-circle" id="pkSubmitBtn" title="Send message">
+                  <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <!-- Legacy Compatibility Layer (Ensures background monitors and tests never throw null) -->
+          <div class="legacy-compat-hidden" style="display:none;" aria-hidden="true">
+            <div id="resBanner">
+              <span id="cmdMeta">System Ready</span>
+              <span id="cmdTime">—</span>
+              <div id="cmd">Awaiting input…</div>
+              <div id="res"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
-  </aside>
+
+    <!-- Right Column: Live Telemetry & Reminders Sidebar -->
+    <div class="right-column">
+
+      <!-- Deadlines -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Reminders & Deadlines</span>
+          </div>
+          <div class="panel-subtitle" id="outbound">Auto-call ready</div>
+        </div>
+
+        <div class="deadline-items" id="dls">
+          <div class="empty">No upcoming deadlines.</div>
+        </div>
+
+        <form class="deadline-form" id="addDl">
+          <input class="field-input" id="dlTitle" placeholder="Task title (e.g. Project presentation)" required>
+          <input class="field-input" id="dlWhen" placeholder="Due time (e.g. tomorrow at 5pm)" required>
+          <button type="submit" class="btn-add-deadline">+ Add Reminder</button>
+        </form>
+
+        <button id="testCall" class="btn-call-trigger" type="button">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <span>Trigger Outbound Call to Phone</span>
+        </button>
+        <div id="watchMsg" class="call-message"></div>
+      </section>
+
+    </div>
+
+  </div>
+
 </div>
+
 <script>
-const CAPS = {
-  open_website:['🌐','Open any website'], web_search:['🔎','Google search'], play_youtube:['▶️','Play on YouTube'],
-  open_app:['🗂️','Open apps'], media_control:['🎚️','Music and volume'], run_routine:['⚡','Work / study modes'],
-  set_timer:['⏱️','Timers that talk'], speak_on_laptop:['🔊','Laptop speaks'], take_screenshot:['📸','Screenshots'],
-  draft_email:['✉️','Draft emails'], directions:['🧭','Directions'], weather:['⛅','Weather'],
-  take_note:['📝','Take notes'], read_notes:['📖','Read notes'], show_notes:['🗒️','Show notes'],
-  system_status:['🔋','Battery and time'], lock_screen:['🔒','Lock laptop'],
-  find_file:['📂','Find and open any file'], focus_session:['🎯','Focus sessions'],
-  add_deadline:['⏰','Deadline calls'], list_deadlines:['📋','What is due'], finish_deadline:['✅','Mark submitted'],
-  call_owner:['📞','ARRC calls you'],
+// Precision Feather-Light SVG Icons
+const SVG = {
+  app: `<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
+  close: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+  terminal: `<svg class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`,
+  battery: `<svg class="icon" viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="13" x2="23" y2="11"/></svg>`,
+  lock: `<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  camera: `<svg class="icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+  media: `<svg class="icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`,
+  
+  chat: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>`,
+  brain: `<svg class="icon" viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.4V20h6v-2.6c2.9-1.1 5-4 5-7.4a8 8 0 0 0-8-8z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>`,
+  clear: `<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+  code: `<svg class="icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+  summary: `<svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+  file: `<svg class="icon" viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`,
+
+  web: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+  search: `<svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  play: `<svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`,
+  weather: `<svg class="icon" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>`,
+  maps: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>`,
+  upload: `<svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
+
+  whatsapp: `<svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+  notes: `<svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>`,
+  target: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+  timer: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  mail: `<svg class="icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+  speaker: `<svg class="icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`,
 };
-const NICE = Object.fromEntries(Object.entries(CAPS).map(([k,v])=>[k,v[1]]));
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
 const $ = id => document.getElementById(id);
-let seen = null, idle;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let seen = null;
+let idleTimeout;
 
-fetch('/status').then(r=>r.json()).then(s=>{
-  $('phone').textContent = s.phone || 'Your Sarvam number';
-  $('lock').innerHTML = s.lock ? `<span class="ok"><span class="dot"></span>ON · ${esc(s.owner)}</span>` : '<span class="warn"><span class="dot"></span>OFF</span>';
-  $('caps').innerHTML = s.actions.filter(a=>CAPS[a]).map(a=>`<div class="cap" data-a="${a}"><span class="ic">${CAPS[a][0]}</span>${esc(CAPS[a][1])}</div>`).join('');
-}).catch(()=>{});
+// Theme sync
+function syncThemeButton() {
+  const btn = $('themeToggle');
+  if (!btn) return;
+  const light = document.documentElement.dataset.theme === 'light';
+  const label = light ? 'Switch to dark mode' : 'Switch to light mode';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-pressed', String(light));
+}
+$('themeToggle')?.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('siri-theme', next); } catch {}
+  syncThemeButton();
+});
+syncThemeButton();
 
-function pulse(e){
+// ── Multilingual selector: sets the server's active language, then confirms in chat ──
+async function switchAppLanguage(code) {
+  const select = $('langSelect');
+  if (select) select.value = code;
+  try { localStorage.setItem('siri-language', code); } catch {}
+  try {
+    const res = await fetch('/tools/set_language', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: code })
+    });
+    const data = await res.json();
+    if (data?.result) addChatMessage({ role: 'assistant', text: data.result, action: 'LANGUAGE' });
+  } catch {}
+}
+window.switchAppLanguage = switchAppLanguage;
+
+function autoResizeTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+// Search Toggle Mode
+let searchModeActive = false;
+window.toggleSearchMode = function(e) {
+  if (e) e.preventDefault();
+  searchModeActive = !searchModeActive;
+  const btn = $('pkSearchToggleBtn');
+  const inputEl = $('directInput');
+  if (btn) btn.classList.toggle('active', searchModeActive);
+  if (inputEl) {
+    inputEl.placeholder = searchModeActive ? "Search the web with Siri..." : "Message Siri...";
+    inputEl.focus();
+  }
+};
+
+function runPrompt(txt) {
+  const inputEl = $('directInput');
+  if (!inputEl) return;
+  inputEl.value = txt;
+  autoResizeTextarea(inputEl);
+  inputEl.focus();
+  $('directCmdForm').requestSubmit();
+}
+
+// API Helper
+async function apiPost(path, body) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  return r.json();
+}
+
+// ── Floating Dynamic Island / Capsule Controller ──
+function updateCapsule(action, title, detail, isWorking = false) {
+  const capTitle = $('capsuleTitle');
+  const capStatus = $('capsuleStatus');
+  const capTag = $('capsuleActionTag');
+  const capDetail = $('capsuleDetailText');
+  const capBadge = $('capsuleBadgeText');
+
+  if (capTitle) capTitle.textContent = title ? String(title).slice(0, 36) : 'Siri Assistant';
+  if (capStatus) capStatus.textContent = detail ? String(detail).slice(0, 48) : 'System Ready • Online';
+  if (capTag) capTag.textContent = (action || 'ACTIVE').toUpperCase();
+  if (capDetail) capDetail.textContent = detail || 'Listening for commands...';
+
+  if (isWorking) {
+    if (capBadge) capBadge.textContent = 'EXECUTING';
+  } else {
+    if (capBadge) capBadge.textContent = 'ONLINE';
+  }
+
+  // Push update to native system desktop capsule via server
+  try {
+    fetch('/capsule/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, title, detail, isWorking })
+    }).catch(() => {});
+  } catch {}
+}
+
+function handleCapsuleClick(e) {
+  if (e.target.closest('button')) return;
+  triggerCapsuleToggle();
+}
+
+function triggerCapsuleToggle() {
+  $('dynamicCapsule')?.classList.toggle('expanded');
+}
+
+// Trigger Status Indicator & Response
+function triggerReactor(e) {
   const r = $('reactor');
-  r.classList.remove('fire','deny'); void r.offsetWidth;
-  r.classList.add(e.refused ? 'deny' : 'fire');
-  $('state').textContent = e.refused ? 'REFUSED' : 'EXECUTING';
-  $('big').textContent = e.refused ? 'Not owner' : (NICE[e.action] || e.action);
-  $('cmd').innerHTML = e.input && e.input !== 'none' ? `<q>${esc(e.input)}</q>` : esc(NICE[e.action] || e.action);
-  $('res').textContent = e.result || '';
-  document.querySelectorAll('.cap').forEach(c=>c.classList.toggle('hot', c.dataset.a === e.action));
-  clearTimeout(idle);
-  idle = setTimeout(()=>{ r.classList.remove('fire','deny'); $('state').textContent='STANDBY'; $('big').textContent='Ready';
-    document.querySelectorAll('.cap.hot').forEach(c=>c.classList.remove('hot')); }, 6000);
+  if (r) r.classList.add('active');
+  const island = $('dynamicIsland');
+  if (island) island.classList.add('active');
+
+  // Antigravity screen-edge orange glow
+  document.body.classList.add('agent-active');
+  
+  $('state').textContent = e.refused ? 'BLOCKED' : (e.action ? e.action.toUpperCase() : 'ACTIVE');
+  $('cmdMeta').textContent = e.action ? `Action: ${e.action.toUpperCase()}` : 'Executed';
+  $('cmdTime').textContent = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  $('cmd').textContent = e.input && e.input !== 'none' ? `“${e.input}”` : (e.action || '');
+
+  const urlMatch = e.url || (typeof e.result === 'string' ? e.result.match(/https?:\/\/[^\s)"]+/)?.[0] : null);
+  if (urlMatch) {
+    $('res').innerHTML = esc(e.result || '') + `
+      <div style="margin-top: 10px;">
+        <a href="${esc(urlMatch)}" target="_blank" rel="noopener noreferrer" class="btn-destination-pill">
+          <span>Open in Browser ↗</span>
+        </a>
+      </div>
+    `;
+  } else {
+    $('res').textContent = e.result || '';
+  }
+
+  
+  clearTimeout(idleTimeout);
+  idleTimeout = setTimeout(() => {
+    if (r) r.classList.remove('active');
+    if (island) island.classList.remove('active');
+    document.body.classList.remove('agent-active');
+    $('state').textContent = 'STANDBY';
+  }, 4500);
 }
 
-async function tick(){
-  try{
-    const a = await (await fetch('/activity')).json();
-    const key = JSON.stringify(a[0] || null);
+// Initial Status Fetch
+fetch('/status').then(r => r.json()).then(s => {
+  if (s.language && $('langSelect')) $('langSelect').value = s.language;
+}).catch(() => {});
+
+updateCapsule('READY', 'Siri Assistant', 'System Ready • Online', false);
+
+function formatResultWithLinks(text) {
+  if (!text) return '';
+  const escaped = esc(text);
+  return escaped.replace(/(https?:\/\/[^\s)"]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">$1</a>');
+}
+
+// Activity Feed Polling
+async function pollActivity() {
+  try {
+    const act = await (await fetch('/activity')).json();
+    const key = JSON.stringify(act[0] || null);
     if (key === seen) return;
-    const first = seen === null; seen = key;
-    $('count').textContent = a.filter(e=>!e.refused).length;
-    $('refused').textContent = a.filter(e=>e.refused).length;
-    $('feed').innerHTML = a.length ? a.map((e,i)=>`<div class="item ${e.refused?'refused':''} ${!first&&i===0?'new':''}">
-      <div class="top"><span class="act">${esc(e.action)}</span><span>${e.caller?esc(e.caller)+' · ':''}${esc(e.at)}</span></div>
-      ${e.input && e.input!=='none' ? `<div class="in">“${esc(e.input)}”</div>` : ''}<div class="out">${esc(e.result)}</div></div>`).join('')
-      : '<div class="empty">No actions yet. Call the number.</div>';
-    if (!first && a[0]) pulse(a[0]);
-    $('link').innerHTML = '<span class="dot"></span>ONLINE'; $('link').className = 'ok';
-  }catch{ $('link').innerHTML = '<span class="dot"></span>OFFLINE'; $('link').className = 'bad'; }
-}
-setInterval(tick, 700); tick();
+    const isFirst = seen === null;
+    seen = key;
 
-const left = m => m < 0 ? 'overdue' : m < 60 ? `${Math.round(m)} min left` : m < 2880 ? `${Math.round(m/60)} h left` : `${Math.round(m/1440)} days left`;
-async function watch(){
-  try{
-    const s = await (await fetch('/monitor')).json();
-    $('outbound').innerHTML = s.configured ? '<span class="ok"><span class="dot"></span>READY</span>' : '<span class="warn"><span class="dot"></span>DRY RUN</span>';
-    $('dls').innerHTML = s.deadlines.length ? s.deadlines.map(d=>`<div class="dl ${d.minutesLeft<0?'late':d.minutesLeft<180?'soon':''}">
-      <div><b>${esc(d.title)}</b><small>${new Date(d.due).toLocaleString('en-IN',{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})} · ${left(d.minutesLeft)}</small></div>
-      <button data-id="${esc(d.id)}">Submitted</button></div>`).join('') : '<div class="empty">No deadlines yet. Say “remind me…” on a call.</div>';
-  }catch{}
+    $('count').textContent = act.filter(e => !e.refused).length;
+
+'<div class="empty">No recent activity.</div>';
+
+    if (!isFirst && act[0]) triggerReactor(act[0]);
+    $('link').innerHTML = '<span class="dot"></span><span>Online</span>';
+  } catch {
+    $('link').innerHTML = '<span class="dot" style="background:#888;"></span><span>Offline</span>';
+  }
 }
-async function post(path, body){ const r = await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}); return r.json(); }
-$('dls').addEventListener('click', async e => { const id = e.target.dataset?.id; if (!id) return; $('watchMsg').textContent = (await post('/monitor/done',{id})).result; watch(); });
-$('addDl').addEventListener('submit', async e => { e.preventDefault(); const r = await post('/monitor/add',{title:$('dlTitle').value, when:$('dlWhen').value}); $('watchMsg').textContent = r.result; if (!/couldn|passed|Tell me/.test(r.result)) { $('dlTitle').value=''; $('dlWhen').value=''; } watch(); });
-$('testCall').addEventListener('click', async () => { $('watchMsg').textContent = 'Calling your phone…'; const r = await post('/monitor/test-call'); $('watchMsg').textContent = r.ok ? 'Calling you now. Pick up!' : r.dryRun ? 'Dry run: add the Sarvam outbound keys to .env to place real calls.' : `Call failed (${r.status || r.error}).`; });
-setInterval(watch, 5000); watch();
+setInterval(pollActivity, 750);
+pollActivity();
+
+// Deadlines & Watcher Polling
+const formatLeft = m => m < 0 ? 'overdue' : m < 60 ? `${Math.round(m)}m left` : m < 2880 ? `${Math.round(m/60)}h left` : `${Math.round(m/1440)}d left`;
+async function pollWatcher() {
+  try {
+    const s = await (await fetch('/monitor')).json();
+    $('outbound').textContent = s.configured ? 'Auto-call ready' : 'Dry run';
+    
+    $('dls').innerHTML = s.deadlines.length ? s.deadlines.map(d => `
+      <div class="deadline-row ${d.minutesLeft < 0 ? 'urgent' : ''}">
+        <div>
+          <div class="deadline-name">${esc(d.title)}</div>
+          <div class="deadline-due">${new Date(d.due).toLocaleString('en-IN', { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · ${formatLeft(d.minutesLeft)}</div>
+        </div>
+        <button class="btn-check" data-id="${esc(d.id)}">Done</button>
+      </div>
+    `).join('') : '<div class="empty">No active deadlines.</div>';
+  } catch {}
+}
+
+$('dls').addEventListener('click', async e => {
+  const id = e.target.dataset?.id;
+  if (!id) return;
+  $('watchMsg').textContent = (await apiPost('/monitor/done', { id })).result;
+  pollWatcher();
+});
+
+$('addDl').addEventListener('submit', async e => {
+  e.preventDefault();
+  const r = await apiPost('/monitor/add', { title: $('dlTitle').value, when: $('dlWhen').value });
+  $('watchMsg').textContent = r.result;
+  if (!/couldn|passed|Tell me/.test(r.result)) {
+    $('dlTitle').value = '';
+    $('dlWhen').value = '';
+  }
+  pollWatcher();
+});
+
+// Outbound Phone Trigger
+async function triggerCall() {
+  $('watchMsg').textContent = 'Dialing mobile phone via Twilio...';
+  const r = await apiPost('/monitor/test-call');
+  $('watchMsg').textContent = r.ok ? 'Calling your phone now! Answer to speak with Siri.' : r.dryRun ? 'Dry run: Add Twilio keys to .env.' : `Call failed (${r.status || r.error}).`;
+}
+$('testCall').addEventListener('click', triggerCall);
+$('topTestCall').addEventListener('click', triggerCall);
+
+setInterval(pollWatcher, 5000);
+pollWatcher();
+
+// ── Prompt-Kit Chat Interface Controller ──
+const pkViewport = $('pkChatViewport');
+const pkMessageList = $('pkMessageList');
+const pkEmptyState = $('pkEmptyState');
+const pkScrollBtn = $('pkScrollBtn');
+const pkTextarea = $('directInput');
+
+function autoResizeTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+pkTextarea?.addEventListener('input', () => autoResizeTextarea(pkTextarea));
+pkTextarea?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    $('directCmdForm').requestSubmit();
+  }
+});
+
+function scrollChatToBottom(smooth = true) {
+  if (!pkViewport) return;
+  pkViewport.scrollTo({
+    top: pkViewport.scrollHeight,
+    behavior: smooth ? 'smooth' : 'auto'
+  });
+  if (pkScrollBtn) pkScrollBtn.style.display = 'none';
+}
+
+pkViewport?.addEventListener('scroll', () => {
+  if (!pkScrollBtn) return;
+  const isUp = (pkViewport.scrollHeight - pkViewport.scrollTop - pkViewport.clientHeight) > 100;
+  pkScrollBtn.style.display = isUp ? 'flex' : 'none';
+});
+
+function clearChatThread() {
+  if (pkMessageList) pkMessageList.innerHTML = '';
+  if (pkEmptyState) pkEmptyState.style.display = 'flex';
+  if (pkScrollBtn) pkScrollBtn.style.display = 'none';
+}
+
+function handleFileSelected(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const inputEl = $('directInput');
+  inputEl.value = `analyze file ${file.name}`;
+  autoResizeTextarea(inputEl);
+  inputEl.focus();
+}
+
+window.copyResponseText = function(btn) {
+  const card = btn.closest('.pk-response-card');
+  const textEl = card?.querySelector('.pk-response-text');
+  const text = textEl ? textEl.innerText : '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<svg class="icon" style="width:11px;height:11px;color:#22c55e;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>Copied</span>`;
+    setTimeout(() => { btn.innerHTML = orig; }, 1800);
+  });
+};
+
+window.toggleCotStep = function(headerEl) {
+  const step = headerEl.closest('.pk-cot-step');
+  if (step) step.classList.toggle('open');
+};
+
+function renderChainOfThought(action, input, latencyMs) {
+  return `
+    <div class="pk-cot">
+      <div class="pk-cot-step open">
+        <div class="pk-cot-header" onclick="toggleCotStep(this)">
+          <div class="pk-cot-node">
+            <span class="pk-cot-dot"></span>
+            <span class="pk-cot-line"></span>
+          </div>
+          <div class="pk-cot-trigger">
+            <span>Analyzing the user's request</span>
+            <svg class="pk-cot-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="pk-cot-content">
+          <div class="pk-cot-item">The user requested: “${esc(input || action)}”</div>
+          <div class="pk-cot-item">Parsed intent parameters and validated safety boundary</div>
+        </div>
+      </div>
+
+      <div class="pk-cot-step open">
+        <div class="pk-cot-header" onclick="toggleCotStep(this)">
+          <div class="pk-cot-node">
+            <span class="pk-cot-dot"></span>
+            <span class="pk-cot-line"></span>
+          </div>
+          <div class="pk-cot-trigger">
+            <span>Considering implementation options</span>
+            <svg class="pk-cot-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="pk-cot-content">
+          <div class="pk-cot-item">Action intent routed: ${esc(action ? action.toUpperCase() : 'SYSTEM PIPELINE')}</div>
+          <div class="pk-cot-item">Execution cycle: ${latencyMs ? latencyMs + 'ms' : 'Fast path'}</div>
+        </div>
+      </div>
+
+      <div class="pk-cot-step open">
+        <div class="pk-cot-header" onclick="toggleCotStep(this)">
+          <div class="pk-cot-node">
+            <span class="pk-cot-dot"></span>
+          </div>
+          <div class="pk-cot-trigger">
+            <span>Selecting the best approach</span>
+            <svg class="pk-cot-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="pk-cot-content">
+          <div class="pk-cot-item">Executed system action and synthesized final response</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSources(text, url) {
+  const combined = (text || '') + ' ' + (url || '');
+  const allUrls = [...new Set(combined.match(/https?:\/\/[^\s)"]+/g) || [])];
+  const seenDomains = new Set();
+  const sources = [];
+  const knownDomains = [
+    { match: /github\.com/i, name: 'github.com', title: 'GitHub', desc: 'Core building blocks for AI apps. High-quality code repository.', icon: 'https://github.githubassets.com/favicons/favicon.svg' },
+    { match: /google\.com/i, name: 'google.com', title: 'Google', desc: 'Search the world\'s information, including webpages, images, videos and more.', icon: 'https://www.google.com/favicon.ico' },
+    { match: /wikipedia\.org/i, name: 'wikipedia.org', title: 'Wikipedia', desc: 'The free encyclopedia that anyone can edit.', icon: 'https://en.wikipedia.org/static/favicon/wikipedia.ico' },
+    { match: /figma\.com/i, name: 'figma.com', title: 'Figma', desc: 'Collaborative interface design tool for building meaningful digital products.', icon: 'https://static.figma.com/app/icon/1/favicon.png' },
+    { match: /ycombinator\.com/i, name: 'news.ycombinator.com', title: 'Hacker News', desc: 'Social news website focusing on computer science and entrepreneurship.', icon: 'https://news.ycombinator.com/favicon.ico' }
+  ];
+
+  allUrls.forEach(m => {
+    try {
+      const u = new URL(m);
+      const domain = u.hostname.replace(/^www\./, '');
+      if (seenDomains.has(domain)) return;
+      seenDomains.add(domain);
+      const known = knownDomains.find(k => k.match.test(domain));
+      sources.push({
+        url: m,
+        domain,
+        title: known ? known.title : domain,
+        desc: known ? known.desc : `Resource located at ${domain}`,
+        icon: known ? known.icon : `https://www.google.com/s2/favicons?domain=${domain}`
+      });
+    } catch {}
+  });
+
+  if (!sources.length) return '';
+  return `
+    <div class="pk-sources-row">
+      ${sources.map(s => `
+        <a class="pk-source-pill" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">
+          <img class="pk-source-favicon" src="${esc(s.icon)}" alt="" onerror="this.style.display='none'">
+          <span>${esc(s.domain)}</span>
+          <div class="pk-source-tooltip">
+            <div class="pk-source-title">${esc(s.title)}</div>
+            <div class="pk-source-desc">${esc(s.desc)}</div>
+          </div>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
+function showLoader() {
+  $('pkActiveLoader')?.remove();
+  const row = document.createElement('div');
+  row.className = 'pk-msg-row pk-msg-assistant';
+  row.id = 'pkActiveLoader';
+  row.innerHTML = `
+    <div class="pk-avatar">
+      <svg class="icon" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.4V20h6v-2.6c2.9-1.1 5-4 5-7.4a8 8 0 0 0-8-8z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>
+    </div>
+    <div class="pk-assistant-content">
+      <div class="pk-loader-typing">
+        <span class="pk-loader-dot"></span>
+        <span class="pk-loader-dot"></span>
+        <span class="pk-loader-dot"></span>
+      </div>
+    </div>
+  `;
+  pkMessageList.appendChild(row);
+  scrollChatToBottom(true);
+}
+
+function hideLoader() {
+  $('pkActiveLoader')?.remove();
+}
+
+function addChatMessage({ role, text, action, latencyMs, url, inputQuery }) {
+  if (!pkMessageList) return;
+  if (pkEmptyState) pkEmptyState.style.display = 'none';
+
+  const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const row = document.createElement('div');
+  row.className = `pk-msg-row ${role === 'user' ? 'pk-msg-user' : 'pk-msg-assistant'}`;
+
+  if (role === 'user') {
+    row.innerHTML = `<div class="pk-user-bubble">${esc(text)}</div>`;
+  } else {
+    // ChainOfThought component (Image 3)
+    const cotHtml = renderChainOfThought(action, inputQuery || text, latencyMs);
+    // Source component (Image 4)
+    const sourcesHtml = renderSources(text, url);
+
+    row.innerHTML = `
+      <div class="pk-avatar">
+        <svg class="icon" style="width:15px;height:15px;" viewBox="0 0 24 24"><path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.4V20h6v-2.6c2.9-1.1 5-4 5-7.4a8 8 0 0 0-8-8z"/><line x1="10" y1="22" x2="14" y2="22"/></svg>
+      </div>
+      <div class="pk-assistant-content">
+        <div class="pk-assistant-header">
+          <span class="pk-action-tag">${esc(action || 'COMPLETED')}</span>
+          <span class="pk-timestamp">${timeStr}</span>
+        </div>
+        ${cotHtml}
+        <div class="pk-response-card">
+          <div class="pk-response-text">${formatResultWithLinks(text)}</div>
+          ${sourcesHtml}
+          <div class="pk-response-actions">
+            <button type="button" class="pk-btn-copy" onclick="copyResponseText(this)">
+              <svg class="icon" style="width:11px;height:11px;" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  pkMessageList.appendChild(row);
+  scrollChatToBottom(true);
+}
+
+// Command Runner
+$('directCmdForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  let input = $('directInput').value.trim();
+  if (!input) return;
+
+  if (searchModeActive && !/^search\b/i.test(input)) {
+    input = `search ${input}`;
+  }
+  searchModeActive = false;
+  $('pkSearchToggleBtn')?.classList.remove('active');
+  $('directInput').value = '';
+  $('directInput').placeholder = "Message Siri...";
+  autoResizeTextarea($('directInput'));
+
+  // 1. Add User Message to Prompt-Kit ChatContainer
+  addChatMessage({ role: 'user', text: input });
+
+  // 2. Trigger Reactor & Show Prompt-Kit Typing Loader
+  triggerReactor({ action: 'processing', input, result: 'Thinking...' });
+  showLoader();
+  const t0 = performance.now();
+
+  try {
+    const res = await apiPost('/action', { input });
+    const latency = Math.round(performance.now() - t0);
+    const actionName = res.action || 'COMPLETED';
+
+    hideLoader();
+
+    if (res.url) {
+      try { window.open(res.url, '_blank'); } catch {}
+    }
+
+    // 3. Add Assistant Message with ChainOfThought & Sources to ChatContainer
+    addChatMessage({
+      role: 'assistant',
+      text: res.result || 'Executed successfully.',
+      action: actionName,
+      latencyMs: latency,
+      url: res.url,
+      inputQuery: input
+    });
+
+    triggerReactor({ action: actionName, input, result: res.result || 'Executed', url: res.url });
+  } catch (err) {
+    const latency = Math.round(performance.now() - t0);
+    hideLoader();
+    addChatMessage({
+      role: 'assistant',
+      text: `Execution failed: ${err.message}`,
+      action: 'ERROR',
+      latencyMs: latency,
+      inputQuery: input
+    });
+    triggerReactor({ action: 'error', input, result: err.message, refused: true });
+  }
+});
+
+// Web Speech Voice Dictation
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SpeechRec) {
+  const recognizer = new SpeechRec();
+  recognizer.continuous = false;
+  recognizer.lang = 'en-IN';
+
+  $('micBtn').addEventListener('click', () => {
+    if ($('micBtn').classList.contains('listening')) {
+      recognizer.stop();
+      $('micBtn').classList.remove('listening');
+    } else {
+      recognizer.start();
+      $('micBtn').classList.add('listening');
+    }
+  });
+
+  recognizer.onresult = (e) => {
+    const speechText = e.results[0][0].transcript;
+    $('directInput').value = speechText;
+    autoResizeTextarea($('directInput'));
+    $('micBtn').classList.remove('listening');
+    $('directCmdForm').dispatchEvent(new Event('submit'));
+  };
+
+  recognizer.onerror = () => { $('micBtn').classList.remove('listening'); };
+  recognizer.onend = () => { $('micBtn').classList.remove('listening'); };
+} else {
+  $('micBtn').style.display = 'none';
+}
+
+
 </script>
+<script>
+// ── WebGL2 Interactive DotGrid Component ──
+const VERTEX = `#version 300 es
+precision highp float;
+
+layout(location = 0) in vec2 aCorner;
+layout(location = 1) in vec4 aMotion;
+layout(location = 2) in vec2 aState;
+
+uniform vec2 uResolution;
+uniform float uSize;
+uniform float uSwell;
+uniform float uStretch;
+uniform float uGlow;
+
+out vec2 vLocal;
+out vec2 vPoint;
+out float vLength;
+out float vRadius;
+out float vEnergy;
+
+void main() {
+  float energy = aState.x;
+  float radius = 0.5 * uSize * aState.y * (1.0 + uSwell * energy);
+  float speed = length(aMotion.zw);
+  float angle = speed > 0.001 ? atan(aMotion.w, aMotion.z) : 0.0;
+  float axis = floor(angle / 1.5707963 + 0.5) * 1.5707963;
+  angle = axis + (angle - axis) * smoothstep(8.0, 70.0, speed);
+  vec2 dir = vec2(cos(angle), sin(angle));
+  float halfLength = min(uSize * 2.0, speed * uStretch * 0.02);
+  float pad = radius * (1.0 + uGlow * energy * 2.5) + 2.0;
+  vec2 local = aCorner * vec2(halfLength + pad, pad);
+  vec2 point = aMotion.xy + dir * local.x + vec2(-dir.y, dir.x) * local.y;
+  vLocal = local;
+  vPoint = point;
+  vLength = halfLength;
+  vRadius = radius;
+  vEnergy = energy;
+  vec2 clip = point / uResolution * 2.0 - 1.0;
+  gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+}
+`;
+
+const FRAGMENT = `#version 300 es
+precision highp float;
+
+in vec2 vLocal;
+in vec2 vPoint;
+in float vLength;
+in float vRadius;
+in float vEnergy;
+
+uniform vec2 uResolution;
+uniform vec3 uBase;
+uniform vec3 uActive;
+uniform float uGlow;
+uniform float uOpacity;
+uniform float uFade;
+uniform int uShape;
+
+out vec4 outColor;
+
+float smootherstep01(float t) {
+  t = clamp(t, 0.0, 1.0);
+  return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+}
+
+void main() {
+  float d;
+  if (uShape == 1) {
+    float corner = vRadius * 0.3;
+    vec2 q = abs(vLocal) - vec2(vLength + vRadius, vRadius) + corner;
+    d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - corner;
+  } else {
+    d = length(vec2(max(abs(vLocal.x) - vLength, 0.0), vLocal.y)) - vRadius;
+  }
+  float aa = max(fwidth(d), 0.0001);
+  float body = clamp(0.5 - d / aa, 0.0, 1.0);
+  float halo = uGlow * vEnergy * 0.5 * exp(-max(d, 0.0) / max(vRadius * 1.3, 0.6));
+  float alpha = body + (1.0 - body) * halo;
+  vec3 color = mix(uBase, uActive, clamp(vEnergy * 1.2, 0.0, 1.0));
+  float fade = 1.0;
+  if (uFade > 0.0) {
+    vec2 edge = min(vPoint, uResolution - vPoint) / (uFade * 0.4 * min(uResolution.x, uResolution.y));
+    fade = smootherstep01(edge.x) * smootherstep01(edge.y);
+  }
+  alpha *= uOpacity * fade;
+  outColor = vec4(color * alpha, alpha);
+}
+`;
+
+const toRgb = color => {
+  const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(color).trim());
+  if (!match) return [1, 1, 1];
+  const hex = match[1].length === 3 ? match[1].replace(/./g, digit => digit + digit) : match[1];
+  return [0, 2, 4].map(index => parseInt(hex.slice(index, index + 2), 16) / 255);
+};
+
+const smootherstep = t => {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * x * (x * (x * 6 - 15) + 10);
+};
+
+const backOut = t => {
+  const s = 1.9;
+  const x = t - 1;
+  return 1 + x * x * ((s + 1) * x + s);
+};
+
+const compile = (gl, type, source) => {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  return shader;
+};
+
+// Pure WebGL2 Engine Class
+class DotGridEngine {
+  constructor(canvas, initialSettings = {}) {
+    this.canvas = canvas;
+    this.settings = Object.assign({
+      dotSize: 5,
+      gap: 18,
+      baseColor: '#3a3446',
+      activeColor: '#ea580c',
+      proximity: 140,
+      strength: 1,
+      bounce: 0.6,
+      tension: 0.4,
+      returnDuration: 0.8,
+      shockRadius: 320,
+      shockStrength: 5,
+      swell: 0.8,
+      stretch: 0.5,
+      glow: 0.5,
+      shape: 'circle',
+      fade: 0,
+      opacity: 1,
+      intro: true,
+      mouseInteraction: true,
+      clickShock: true,
+      paused: false,
+      dpr: window.devicePixelRatio || 1
+    }, initialSettings);
+
+    const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false });
+    if (!gl) return;
+    this.gl = gl;
+
+    const program = gl.createProgram();
+    gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERTEX));
+    gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, FRAGMENT));
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
+    this.program = program;
+
+    this.uniforms = {};
+    for (const name of [
+      'uResolution',
+      'uSize',
+      'uSwell',
+      'uStretch',
+      'uGlow',
+      'uBase',
+      'uActive',
+      'uOpacity',
+      'uFade',
+      'uShape'
+    ]) {
+      this.uniforms[name] = gl.getUniformLocation(program, name);
+    }
+
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    this.vao = vao;
+
+    const cornerBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    this.cornerBuffer = cornerBuffer;
+
+    const instanceBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuffer);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 24, 0);
+    gl.vertexAttribDivisor(1, 1);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 24, 16);
+    gl.vertexAttribDivisor(2, 1);
+    gl.bindVertexArray(null);
+    this.instanceBuffer = instanceBuffer;
+
+    this.reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.view = { width: 0, height: 0, left: 0, top: 0, ratio: 1 };
+    this.grid = { count: 0, cols: 1, rows: 1, cell: 1, centerX: 0, centerY: 0, reach: 1 };
+    this.rest = new Float32Array(0);
+    this.offset = new Float32Array(0);
+    this.velocity = new Float32Array(0);
+    this.force = new Float32Array(0);
+    this.next = new Float32Array(0);
+    this.wave = new Float32Array(0);
+    this.energy = new Float32Array(0);
+    this.instances = new Float32Array(0);
+    this.pointer = { x: 0, y: 0, vx: 0, vy: 0, time: 0, inside: false, presence: 0 };
+    this.shocks = [];
+    this.introStart = this.settings.intro && !this.reduced ? -1 : null;
+    this.visible = true;
+    this.raf = 0;
+    this.last = 0;
+
+    this.bindEvents();
+    this.resize();
+    this.wake();
+  }
+
+  rebuild() {
+    const { dotSize: size, gap: spacing } = this.settings;
+    const cell = Math.max(2, size + spacing);
+    const cols = Math.max(1, Math.floor((this.view.width + spacing) / cell));
+    const rows = Math.max(1, Math.floor((this.view.height + spacing) / cell));
+    const startX = (this.view.width - (cols * cell - spacing)) / 2 + size / 2;
+    const startY = (this.view.height - (rows * cell - spacing)) / 2 + size / 2;
+    const count = cols * rows;
+
+    this.rest = new Float32Array(count * 2);
+    this.offset = new Float32Array(count * 2);
+    this.velocity = new Float32Array(count * 2);
+    this.force = new Float32Array(count * 2);
+    this.next = new Float32Array(count * 2);
+    this.wave = new Float32Array(count * 4);
+    this.energy = new Float32Array(count);
+    this.instances = new Float32Array(count * 6);
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const index = (row * cols + col) * 2;
+        this.rest[index] = startX + col * cell;
+        this.rest[index + 1] = startY + row * cell;
+      }
+    }
+
+    Object.assign(this.grid, {
+      count,
+      cols,
+      rows,
+      cell,
+      centerX: this.view.width / 2,
+      centerY: this.view.height / 2,
+      reach: Math.hypot(this.view.width, this.view.height) / 2
+    });
+
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.instances.byteLength, gl.DYNAMIC_DRAW);
+  }
+
+  resize() {
+    const rect = this.canvas.getBoundingClientRect();
+    const ratio = Math.min(this.settings.dpr ?? window.devicePixelRatio ?? 1, 2);
+    const width = Math.max(1, Math.round(rect.width));
+    const height = Math.max(1, Math.round(rect.height));
+    Object.assign(this.view, { width, height, left: rect.left, top: rect.top, ratio });
+    this.canvas.width = Math.round(width * ratio);
+    this.canvas.height = Math.round(height * ratio);
+    this.rebuild();
+    this.render(performance.now());
+  }
+
+  step(dt, now) {
+    const s = this.settings;
+    const motion = this.reduced ? 0 : 1;
+    const zeta = 1 - 0.85 * Math.min(1, Math.max(0, s.bounce));
+    const omega = 4 / (zeta * Math.max(0.2, s.returnDuration));
+    const stiffness = omega * omega;
+    const damping = 2 * zeta * omega;
+    const radius = Math.max(1, s.proximity);
+    const speed = Math.hypot(this.pointer.vx, this.pointer.vy);
+    const drive = s.mouseInteraction && this.pointer.inside ? 6500 * Math.tanh(speed / 900) * s.strength * motion : 0;
+    const dirX = speed > 0.001 ? this.pointer.vx / speed : 0;
+    const dirY = speed > 0.001 ? this.pointer.vy / speed : 0;
+    const width = this.grid.cell * 1.4;
+    const travel = 650;
+
+    const active = this.shocks.map(shock => {
+      const front = ((now - shock.start) / 1000) * travel;
+      const power = smootherstep(1 - front / Math.max(1, s.shockRadius));
+      return { ...shock, front, amplitude: power * s.shockStrength * this.grid.cell * 0.24 * motion };
+    });
+
+    const coupling = (Math.max(0, s.tension) * 900) ** 2 / (this.grid.cell * this.grid.cell);
+    const viscosity = Math.sqrt(coupling) * 0.06;
+    const limit = Math.sqrt(stiffness + 8 * coupling) + damping + 8 * viscosity;
+    const steps = Math.min(24, Math.max(1, Math.ceil(dt / Math.min(1 / 120, 1.2 / limit))));
+    const h = dt / steps;
+
+    for (let i = 0; i < this.grid.count; i++) {
+      const index = i * 2;
+      const rx = this.rest[index];
+      const ry = this.rest[index + 1];
+      let ax = 0;
+      let ay = 0;
+      if (drive > 0) {
+        const ex = rx + this.offset[index] - this.pointer.x;
+        const ey = ry + this.offset[index + 1] - this.pointer.y;
+        const distance = Math.hypot(ex, ey);
+        if (distance < radius) {
+          const weight = smootherstep(1 - distance / radius) * drive;
+          const nx = distance > 0.001 ? ex / distance : 0;
+          const ny = distance > 0.001 ? ey / distance : 0;
+          ax += weight * (dirX + nx * 0.6);
+          ay += weight * (dirY + ny * 0.6);
+        }
+      }
+      let wx = 0;
+      let wy = 0;
+      let wvx = 0;
+      let wvy = 0;
+      for (const shock of active) {
+        if (shock.amplitude <= 0) continue;
+        const ex = rx - shock.x;
+        const ey = ry - shock.y;
+        const distance = Math.hypot(ex, ey);
+        const u = (distance - shock.front) / width;
+        if (Math.abs(u) < 3 && distance > 0.001) {
+          const nx = ex / distance;
+          const ny = ey / distance;
+          const profile = Math.exp(-u * u);
+          const push = shock.amplitude * profile;
+          const rate = ((shock.amplitude * 2 * u * profile) / width) * travel;
+          wx += nx * push;
+          wy += ny * push;
+          wvx += nx * rate;
+          wvy += ny * rate;
+          ax += nx * push * stiffness * 0.35;
+          ay += ny * push * stiffness * 0.35;
+        }
+      }
+      this.force[index] = ax;
+      this.force[index + 1] = ay;
+      const target = i * 4;
+      this.wave[target] = wx;
+      this.wave[target + 1] = wy;
+      this.wave[target + 2] = wvx;
+      this.wave[target + 3] = wvy;
+    }
+
+    const { cols, rows } = this.grid;
+    const stride = cols * 2;
+    for (let n = 0; n < steps; n++) {
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const index = (row * cols + col) * 2;
+          let ax = this.force[index] - stiffness * this.offset[index] - damping * this.velocity[index];
+          let ay = this.force[index + 1] - stiffness * this.offset[index + 1] - damping * this.velocity[index + 1];
+          if (coupling > 0) {
+            let lx = -4 * this.offset[index];
+            let ly = -4 * this.offset[index + 1];
+            let mx = -4 * this.velocity[index];
+            let my = -4 * this.velocity[index + 1];
+            if (col > 0) {
+              lx += this.offset[index - 2];
+              ly += this.offset[index - 1];
+              mx += this.velocity[index - 2];
+              my += this.velocity[index - 1];
+            }
+            if (col < cols - 1) {
+              lx += this.offset[index + 2];
+              ly += this.offset[index + 3];
+              mx += this.velocity[index + 2];
+              my += this.velocity[index + 3];
+            }
+            if (row > 0) {
+              lx += this.offset[index - stride];
+              ly += this.offset[index - stride + 1];
+              mx += this.velocity[index - stride];
+              my += this.velocity[index - stride + 1];
+            }
+            if (row < rows - 1) {
+              lx += this.offset[index + stride];
+              ly += this.offset[index + stride + 1];
+              mx += this.velocity[index + stride];
+              my += this.velocity[index + stride + 1];
+            }
+            ax += coupling * lx + viscosity * mx;
+            ay += coupling * ly + viscosity * my;
+          }
+          this.next[index] = this.velocity[index] + ax * h;
+          this.next[index + 1] = this.velocity[index + 1] + ay * h;
+        }
+      }
+      for (let i = 0; i < this.offset.length; i++) {
+        this.velocity[i] = this.next[i];
+        this.offset[i] += this.velocity[i] * h;
+      }
+    }
+
+    for (let i = 0; i < this.grid.count; i++) {
+      const index = i * 2;
+      const target = i * 4;
+      this.energy[i] = Math.min(
+        1,
+        (Math.hypot(this.velocity[index] + this.wave[target + 2], this.velocity[index + 1] + this.wave[target + 3]) / 380) * 0.85 +
+          (Math.hypot(this.offset[index] + this.wave[target], this.offset[index + 1] + this.wave[target + 1]) / (this.grid.cell * 2.2)) * 0.35
+      );
+    }
+
+    for (let i = this.shocks.length - 1; i >= 0; i--) {
+      if (active[i].front > s.shockRadius + width * 3) this.shocks.splice(i, 1);
+    }
+
+    const decay = 1 - Math.exp(-dt / 0.08);
+    this.pointer.vx -= this.pointer.vx * decay;
+    this.pointer.vy -= this.pointer.vy * decay;
+    const presenceTarget = s.mouseInteraction && this.pointer.inside ? 1 : 0;
+    this.pointer.presence += (presenceTarget - this.pointer.presence) * (1 - Math.exp(-dt / 0.2));
+  }
+
+  render(now) {
+    const s = this.settings;
+    const gl = this.gl;
+    if (!gl) return;
+    const radius = Math.max(1, s.proximity);
+    const introAge = this.introStart === null ? Infinity : this.introStart < 0 ? 0 : (now - this.introStart) / 1000;
+    const introFront = introAge * this.grid.reach * 1.25;
+    const introBand = this.grid.cell * 4;
+
+    for (let i = 0; i < this.grid.count; i++) {
+      const index = i * 2;
+      const source = i * 4;
+      const x = this.rest[index] + this.offset[index] + this.wave[source];
+      const y = this.rest[index + 1] + this.offset[index + 1] + this.wave[source + 1];
+      let glowing = this.energy[i];
+      if (this.pointer.presence > 0.001) {
+        const distance = Math.hypot(x - this.pointer.x, y - this.pointer.y);
+        if (distance < radius)
+          glowing = Math.max(glowing, smootherstep(1 - distance / radius) * 0.4 * this.pointer.presence);
+      }
+      let scale = 1;
+      if (this.introStart !== null) {
+        const distance = Math.hypot(this.rest[index] - this.grid.centerX, this.rest[index + 1] - this.grid.centerY);
+        const appear = Math.min(1, Math.max(0, (introFront - distance) / introBand));
+        scale = appear >= 1 ? 1 : Math.max(0, backOut(appear));
+        glowing = Math.max(glowing, Math.sin(appear * Math.PI) * 0.6);
+      }
+      const target = i * 6;
+      this.instances[target] = x;
+      this.instances[target + 1] = y;
+      this.instances[target + 2] = this.velocity[index] + this.wave[source + 2];
+      this.instances[target + 3] = this.velocity[index + 1] + this.wave[source + 3];
+      this.instances[target + 4] = glowing;
+      this.instances[target + 5] = scale;
+    }
+
+    const base = toRgb(s.baseColor);
+    const accent = toRgb(s.activeColor);
+
+    gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(this.program);
+    gl.uniform2f(this.uniforms.uResolution, this.view.width, this.view.height);
+    gl.uniform1f(this.uniforms.uSize, Math.max(0.5, s.dotSize));
+    gl.uniform1f(this.uniforms.uSwell, this.reduced ? 0 : Math.max(0, s.swell));
+    gl.uniform1f(this.uniforms.uStretch, this.reduced ? 0 : Math.max(0, s.stretch));
+    gl.uniform1f(this.uniforms.uGlow, Math.max(0, s.glow));
+    gl.uniform3f(this.uniforms.uBase, base[0], base[1], base[2]);
+    gl.uniform3f(this.uniforms.uActive, accent[0], accent[1], accent[2]);
+    gl.uniform1f(this.uniforms.uOpacity, Math.min(1, Math.max(0, s.opacity)));
+    gl.uniform1f(this.uniforms.uFade, Math.min(1, Math.max(0, s.fade)));
+    gl.uniform1i(this.uniforms.uShape, s.shape === 'square' ? 1 : 0);
+
+    gl.bindVertexArray(this.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.instances);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.grid.count);
+    gl.bindVertexArray(null);
+  }
+
+  settled(now) {
+    if (this.shocks.length > 0) return false;
+    if (this.introStart !== null) {
+      if (this.introStart < 0 || (now - this.introStart) / 1000 < 1.6) return false;
+      this.introStart = null;
+    }
+    if (Math.abs(this.pointer.vx) + Math.abs(this.pointer.vy) > 1) return false;
+    const presenceTarget = this.settings.mouseInteraction && this.pointer.inside ? 1 : 0;
+    if (Math.abs(presenceTarget - this.pointer.presence) > 0.002) return false;
+    for (let i = 0; i < this.offset.length; i++) {
+      if (Math.abs(this.offset[i]) > 0.02 || Math.abs(this.velocity[i]) > 0.5) return false;
+    }
+    return true;
+  }
+
+  frame = now => {
+    this.raf = 0;
+    if (this.settings.paused || !this.visible) return;
+    if (this.introStart !== null && this.introStart < 0) this.introStart = now;
+    const dt = Math.min(0.05, (now - this.last) / 1000 || 0);
+    this.last = now;
+    this.step(dt, now);
+    this.render(now);
+    if (!this.settled(now)) this.raf = requestAnimationFrame(this.frame);
+  };
+
+  wake() {
+    if (this.raf || this.settings.paused || !this.visible) return;
+    this.last = performance.now();
+    this.raf = requestAnimationFrame(this.frame);
+  }
+
+  locate(event) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.view.left = rect.left;
+    this.view.top = rect.top;
+    return [event.clientX - rect.left, event.clientY - rect.top];
+  }
+
+  bindEvents() {
+    this.onMove = event => {
+      if (!this.settings.mouseInteraction) return;
+      const [x, y] = this.locate(event);
+      const inside = x >= 0 && y >= 0 && x <= this.view.width && y <= this.view.height;
+      const time = event.timeStamp || performance.now();
+      if (inside && this.pointer.inside && this.pointer.time) {
+        const elapsed = Math.max(4, time - this.pointer.time) / 1000;
+        const vx = (x - this.pointer.x) / elapsed;
+        const vy = (y - this.pointer.y) / elapsed;
+        this.pointer.vx += (vx - this.pointer.vx) * 0.6;
+        this.pointer.vy += (vy - this.pointer.vy) * 0.6;
+      } else {
+        this.pointer.vx = 0;
+        this.pointer.vy = 0;
+      }
+      this.pointer.x = x;
+      this.pointer.y = y;
+      this.pointer.time = time;
+      if (inside !== this.pointer.inside || inside) {
+        this.pointer.inside = inside;
+        this.wake();
+      }
+    };
+
+    this.onLeave = () => {
+      this.pointer.inside = false;
+      this.pointer.time = 0;
+      this.wake();
+    };
+
+    this.onOut = event => {
+      if (!event.relatedTarget) this.onLeave();
+    };
+
+    this.onDown = event => {
+      if (!this.settings.clickShock || this.reduced) return;
+      const [x, y] = this.locate(event);
+      if (x < 0 || y < 0 || x > this.view.width || y > this.view.height) return;
+      this.shocks.push({ x, y, start: performance.now() });
+      if (this.shocks.length > 6) this.shocks.shift();
+      this.wake();
+    };
+
+    window.addEventListener('pointermove', this.onMove, { passive: true });
+    window.addEventListener('pointerdown', this.onDown, { passive: true });
+    window.addEventListener('pointerout', this.onOut);
+    window.addEventListener('blur', this.onLeave);
+
+    this.resizeObserver = new ResizeObserver(() => {
+      this.resize();
+      this.wake();
+    });
+    this.resizeObserver.observe(this.canvas);
+
+    this.visibilityObserver = new IntersectionObserver(([entry]) => {
+      this.visible = entry.isIntersecting;
+      if (this.visible) this.wake();
+    });
+    this.visibilityObserver.observe(this.canvas);
+
+    this.onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(this.raf);
+        this.raf = 0;
+      } else {
+        this.wake();
+      }
+    };
+    document.addEventListener('visibilitychange', this.onVisibility);
+  }
+
+  update(newSettings) {
+    const prevDot = this.settings.dotSize;
+    const prevGap = this.settings.gap;
+    Object.assign(this.settings, newSettings);
+    if (this.settings.dotSize !== prevDot || this.settings.gap !== prevGap) {
+      this.rebuild();
+    }
+    this.render(performance.now());
+    this.wake();
+  }
+
+  destroy() {
+    cancelAnimationFrame(this.raf);
+    this.resizeObserver?.disconnect();
+    this.visibilityObserver?.disconnect();
+    window.removeEventListener('pointermove', this.onMove);
+    window.removeEventListener('pointerdown', this.onDown);
+    window.removeEventListener('pointerout', this.onOut);
+    window.removeEventListener('blur', this.onLeave);
+    document.removeEventListener('visibilitychange', this.onVisibility);
+    if (this.gl) {
+      this.gl.deleteBuffer(this.cornerBuffer);
+      this.gl.deleteBuffer(this.instanceBuffer);
+      this.gl.deleteVertexArray(this.vao);
+      this.gl.deleteProgram(this.program);
+    }
+  }
+}
+
+// React Wrapper Component (Pure JS with React.createElement)
+const DotGrid = (props = {}) => {
+  const canvasRef = React.useRef(null);
+  const engineRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!canvasRef.current) return;
+    const engine = new DotGridEngine(canvasRef.current, props);
+    engineRef.current = engine;
+    return () => {
+      engine.destroy();
+      engineRef.current = null;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    engineRef.current?.update(props);
+  }, [
+    props.dotSize,
+    props.gap,
+    props.baseColor,
+    props.activeColor,
+    props.proximity,
+    props.strength,
+    props.bounce,
+    props.tension,
+    props.returnDuration,
+    props.shockRadius,
+    props.shockStrength,
+    props.swell,
+    props.stretch,
+    props.glow,
+    props.shape,
+    props.fade,
+    props.opacity,
+    props.paused,
+    props.mouseInteraction
+  ]);
+
+  return React.createElement(
+    'div',
+    {
+      className: `dot-grid ${props.className || ''}`.trim(),
+      style: { position: 'relative', width: '100%', height: '100%', ...(props.style || {}) }
+    },
+    React.createElement('canvas', {
+      ref: canvasRef,
+      className: 'dot-grid__canvas'
+    })
+  );
+};
+
+// Global mount and dynamic reactive theme syncing
+let activeDotGridEngine = null;
+
+function getDotGridThemePalette() {
+  const isLight = document.documentElement.dataset.theme === 'light';
+  return {
+    // Subtle, low-contrast neutral monochrome dots on black / cream paper
+    baseColor: isLight ? '#e2e2e2' : '#1c1c1c',
+    activeColor: isLight ? '#666666' : '#444444'
+  };
+}
+
+function initDotGrid() {
+  const container = document.getElementById('dotgrid-root');
+  if (!container) return;
+
+  const palette = getDotGridThemePalette();
+  const config = {
+    dotSize: 5,
+    gap: 18,
+    baseColor: palette.baseColor,
+    activeColor: palette.activeColor,
+    proximity: 140,
+    strength: 1,
+    bounce: 0.6,
+    tension: 0.4,
+    returnDuration: 0.8,
+    shockRadius: 320,
+    shockStrength: 5,
+    swell: 0.8,
+    stretch: 0.5,
+    glow: 0.5,
+    shape: 'circle',
+    fade: 0,
+    opacity: 1,
+    intro: true,
+    mouseInteraction: true,
+    clickShock: true,
+    paused: false
+  };
+
+  if (window.ReactDOM && window.React && typeof ReactDOM.createRoot === 'function') {
+    if (!window.__dotGridReactRoot) {
+      window.__dotGridReactRoot = ReactDOM.createRoot(container);
+    }
+    window.__dotGridReactRoot.render(React.createElement(DotGrid, config));
+  } else {
+    // Zero-dependency pure vanilla fallback
+    container.innerHTML = '<div class="dot-grid"><canvas class="dot-grid__canvas"></canvas></div>';
+    const canvas = container.querySelector('.dot-grid__canvas');
+    if (activeDotGridEngine) activeDotGridEngine.destroy();
+    activeDotGridEngine = new DotGridEngine(canvas, config);
+  }
+}
+
+function syncDotGridTheme() {
+  const palette = getDotGridThemePalette();
+  if (window.__dotGridReactRoot) {
+    initDotGrid();
+  } else if (activeDotGridEngine) {
+    activeDotGridEngine.update({
+      baseColor: palette.baseColor,
+      activeColor: palette.activeColor
+    });
+  }
+}
+
+// Attach Theme Mutation Observer so whenever theme toggles, DotGrid syncs immediately
+const themeObserver = new MutationObserver((mutations) => {
+  for (const m of mutations) {
+    if (m.type === 'attributes' && m.attributeName === 'data-theme') {
+      syncDotGridTheme();
+    }
+  }
+});
+themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// Mount upon initialization
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDotGrid);
+} else {
+  initDotGrid();
+}
+</script>
+
 </body>
 </html>

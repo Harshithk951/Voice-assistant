@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Siri Capsule</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+body {
+  background: transparent;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-app-region: drag;
+}
+
+.capsule-body {
+  width: 390px;
+  height: 38px;
+  background: rgba(10, 10, 10, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), 0 0 12px rgba(234, 88, 12, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.capsule-body:active { cursor: grabbing; }
+
+.capsule-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.capsule-wave {
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 16px;
+}
+
+.c-bar {
+  width: 2.5px;
+  height: 6px;
+  background: #ea580c;
+  border-radius: 2px;
+  animation: cWave 1.2s ease-in-out infinite;
+}
+
+.c-bar:nth-child(2) { animation-delay: 0.2s; height: 14px; }
+.c-bar:nth-child(3) { animation-delay: 0.4s; height: 10px; }
+.c-bar:nth-child(4) { animation-delay: 0.1s; height: 16px; }
+
+@keyframes cWave {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
+  50% { transform: scaleY(1.2); opacity: 1; }
+}
+
+.capsule-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.capsule-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.capsule-detail {
+  font-size: 10px;
+  font-family: "JetBrains Mono", monospace;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+.capsule-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2.5px 7px;
+  border-radius: 9999px;
+  background: rgba(234, 88, 12, 0.18);
+  color: #ea580c;
+  border: 1px solid rgba(234, 88, 12, 0.4);
+}
+
+.capsule-dot {
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 50%;
+  background: #ea580c;
+  box-shadow: 0 0 6px #ea580c;
+}
+
+.capsule-body.working {
+  border-color: #ea580c;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(234, 88, 12, 0.6);
+}
+</style>
+</head>
+<body>
+
+<div class="capsule-body" id="capsule">
+  <div class="capsule-left">
+    <div class="capsule-wave">
+      <span class="c-bar"></span>
+      <span class="c-bar"></span>
+      <span class="c-bar"></span>
+      <span class="c-bar"></span>
+    </div>
+    <div class="capsule-info">
+      <span class="capsule-title" id="capTitle">Siri Assistant</span>
+      <span class="capsule-detail" id="capDetail">System Ready • Online</span>
+    </div>
+  </div>
+  <div class="capsule-badge" id="capBadge">
+    <span class="capsule-dot"></span>
+    <span id="capBadgeText">ONLINE</span>
+  </div>
+</div>
+
+<script>
+async function pollState() {
+  try {
+    const res = await fetch('/capsule/state');
+    const s = await res.json();
+    const cap = document.getElementById('capsule');
+    const title = document.getElementById('capTitle');
+    const detail = document.getElementById('capDetail');
+    const badgeText = document.getElementById('capBadgeText');
+
+    if (s.title) title.textContent = String(s.title).slice(0, 32);
+    if (s.detail) detail.textContent = String(s.detail).slice(0, 44);
+    if (s.isWorking) {
+      cap.classList.add('working');
+      badgeText.textContent = 'EXECUTING';
+    } else {
+      cap.classList.remove('working');
+      badgeText.textContent = (s.action || 'ONLINE').toUpperCase();
+    }
+  } catch {}
+}
+setInterval(pollState, 600);
+pollState();
+</script>
+</body>
+</html>
